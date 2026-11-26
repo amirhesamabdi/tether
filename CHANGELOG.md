@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Android phone: a multipart SMS is marked sent only after every part reports success, even if callbacks arrive
+  out of order. If a part fails, both clients receive that part's error.
+
 ## 1.2.5 — 2026-11-25
 
 - iPhone: Tether sets its CallKit provider up again when iOS restarted its call service under the running app. Until

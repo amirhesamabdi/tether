@@ -45,6 +45,7 @@ there is no way to put Tether in the button list of the Contacts app or to make 
   Messages; links, phone numbers and one-time codes are recognised (codes get a Copy button in the notification).
 - **Send** from either SIM (the conversation remembers the last one used). A text that could not be confirmed shows
   *Not Delivered* and is never sent twice by itself.
+  For long texts split into several SMS parts, all parts must report success before the text is confirmed sent.
 - **Read state** is shared: reading on either phone marks the conversation read on both.
 - **Swipe** a conversation to delete, mute (no notifications) or block the sender. Deleting removes it from the
   Android phone too.

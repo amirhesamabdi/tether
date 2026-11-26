@@ -24,6 +24,7 @@ import app.tether.ext.phoneExtensions
 import app.tether.core.idRanges
 import app.tether.core.paginate
 import app.tether.data.ContactsRepo
+import app.tether.data.SmsParts
 import app.tether.data.Ussd
 import app.tether.data.UssdCode
 import app.tether.telecom.FindPhone
@@ -70,7 +71,9 @@ class Hub(private val app: TetherApp) : ConnectionListener {
     private val work = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "hub") }
     /** Call-audio control runs apart from sync/status work so it is never queued behind a big sync. */
     private val audioCtl = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "audio-ctl") }
-    private val smsRequests = ConcurrentHashMap<Int, Pair<Connection, Int>>()
+    private class SmsRequest(val connection: Connection, val replyTo: Int, val parts: SmsParts = SmsParts())
+    private val smsRequests = ConcurrentHashMap<Int, SmsRequest>()
+    private val smsRequestIds = java.util.concurrent.atomic.AtomicInteger(System.nanoTime().toInt() ushr 1)
     private val listeners = CopyOnWriteArrayList<() -> Unit>()
     val audio = AudioSession()
     private val radioPushPending = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -478,24 +481,33 @@ class Hub(private val app: TetherApp) : ConnectionListener {
 
     private fun sendSms(c: Connection, m: Message) {
         val req = m.id ?: 0
-        val localId = (System.nanoTime() and 0xffff).toInt() * 1000 + (req % 1000)
-        smsRequests[localId] = c to req
         val sub = if (m.b.has("sub")) m.b.getInt("sub") else null
-        val err = app.sms.send(m.b.optString("to"), m.b.optString("body"), sub, localId, dry(c))
-        if (err != null || dry(c)) {
-            smsRequests.remove(localId)
+        val localId = smsRequestIds.incrementAndGet()
+        val request = SmsRequest(c, req)
+        smsRequests[localId] = request
+        val dryRun = dry(c)
+        val err = app.sms.send(m.b.optString("to"), m.b.optString("body"), sub, localId, dryRun)
+        if (err != null || dryRun) {
+            smsRequests.remove(localId, request)
             c.send(Message(T.SMS_RESULT, JSONObject().put("ok", err == null).put("state", if (err == null) "sent" else "failed")
                 .apply { err?.let { put("err", it) } }, re = req))
+        } else {
+            // Some requests never receive all callbacks, especially delivery receipts.
+            work.schedule({ smsRequests.remove(localId, request) }, 10, TimeUnit.MINUTES)
         }
     }
 
-    fun smsResult(localId: Int, ok: Boolean, state: String, err: String?) {
-        val (c, re) = smsRequests[localId] ?: return
-        if (state != "sent") smsRequests.remove(localId)
-        // Many networks never send a delivery report: forget the request a while after "sent".
-        else work.schedule({ smsRequests.remove(localId) }, 10, TimeUnit.MINUTES)
-        c.send(Message(T.SMS_RESULT, JSONObject().put("ok", ok).put("state", state).apply { err?.let { put("err", it) } }, re = re))
-        pollSms()
+    /** Called on the main thread by SmsStatusReceiver. */
+    fun smsResult(localId: Int, part: Int, count: Int, delivery: Boolean, error: Int?) {
+        val request = smsRequests[localId] ?: return
+        val results = if (delivery) request.parts.onDelivery(part == count - 1, error) else request.parts.onSent(part, count, error)
+        for (result in results) {
+            if (result.state != "sent") smsRequests.remove(localId, request)
+            val body = JSONObject().put("ok", result.error == null).put("state", result.state)
+            result.error?.let { body.put("err", "error $it") }
+            request.connection.send(Message(T.SMS_RESULT, body, re = request.replyTo))
+        }
+        if (results.isNotEmpty()) pollSms()
     }
 
     // ------------------------------------------------------------------ airplane mode fail-safe

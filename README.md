@@ -78,6 +78,7 @@ other clients and tools on the same link.
   the default calling app for `tel:` links. Numbers are grouped like phones show them, on the keypad as you type.
 - **Messages** (SMS): every conversation, live new texts, send from either SIM, read state shared with the Android
   phone, delete, mute, block, one-time codes with a Copy button, links and phone numbers recognised.
+  Long texts are confirmed sent only after every SMS part reports success.
 - **Contacts**: browse, search, edit, add, favourites; **Recents**: search, delete, clear, missed-call badge.
 - **Notifications** for texts and missed calls, with quick reply.
 - **Link tab**: battery and signal of each SIM, and remote switches for mobile data, the data SIM, Wi-Fi hotspot,
