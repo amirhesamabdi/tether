@@ -64,6 +64,19 @@ key: to move from one of those to 1.2.0, uninstall the old app first (your pairi
    - Android 8, 9 and 10 have no Wireless debugging: use the TCP mode described in [SETUP.md](SETUP.md#tcp-debugging-android-8-to-10-or-no-wi-fi)
      (one `adb tcpip 5555` from a computer after every restart).
 
+### Updating the Android gateway
+
+On the phone with the SIM cards, open **Tether › Help › Check for updates**. If a newer stable version is available,
+tap **Download update**, then **Install update**. On first use Android may ask you to allow installation from Tether.
+Use **Open Settings** if needed, return to Tether, tap **Install update** again and confirm in Android's installer.
+The link pauses while Android replaces the app. Install after finishing any calls.
+
+Checking and downloading uses the internet to reach the official GitHub Releases repository. Tether checks the
+published SHA-256 and confirms that the APK is a newer build of the gateway. Android enforces the package signature
+when installing over your current app. Builds signed with a debug or different key cannot upgrade in place to the
+official APK. Follow the signing note above for that migration. For Tether Client on a second Android phone, use
+the release downloads above.
+
 ## 4. Install the iPhone app
 
 The IPA is unsigned: a sideloading tool signs it with **your own** Apple ID on your computer or phone. Nobody else's

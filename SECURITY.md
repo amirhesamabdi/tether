@@ -5,7 +5,9 @@
 Tether carries calls, texts, contacts and call history between two phones you own. The design goal: nobody but
 those two devices can read or inject anything on the link, and no third party is involved at all.
 
-- **No server, no account, no internet.** The phones talk directly over Bluetooth.
+- **No server or account is needed for the link.** Calls, messages and contacts travel directly over Bluetooth.
+  The optional update check on the Android gateway contacts GitHub Releases only when you start it. It checks
+  the APK's published SHA-256 and package metadata, and Android verifies the signature at installation.
 - **Pairing**: the Android phone shows a QR code with its long-term P-256 public key and a random one-time token,
   valid for 5 minutes. The iPhone scans it, so it learns the right key out of band; the token proves the iPhone
   was shown the code. After pairing, each side stores the other's public key.

@@ -124,6 +124,22 @@
     <string name="adb_paired_no_connect">جفت شد، اما هنوز اتصال برقرار نشد (%1$s). تا وقتی اشکال‌زدایی بی‌سیم روشن است، Tether دوباره تلاش می‌کند.</string>
     <!-- راهنما › گزارش مشکل -->
     <string name="section_help">راهنما</string>
+    <string name="update_check">بررسی به‌روزرسانی</string>
+    <string name="update_checking">در حال بررسی به‌روزرسانی در GitHub…</string>
+    <string name="update_current">نسخهٔ پایدار جدیدتری در دسترس نیست.</string>
+    <string name="update_available">نسخهٔ %1$s تتر در GitHub در دسترس است.</string>
+    <string name="update_download">دانلود به‌روزرسانی</string>
+    <string name="update_downloading">در حال دانلود نسخهٔ %1$s تتر…</string>
+    <string name="update_ready">نسخهٔ %1$s تتر آمادهٔ نصب است.</string>
+    <string name="update_install">نصب به‌روزرسانی</string>
+    <string name="update_install_permission">اندروید برای نصب به‌روزرسانی از طریق تتر به اجازهٔ شما نیاز دارد. در تنظیمات به این منبع اجازه بدهید، به تتر برگردید و دوباره روی «نصب به‌روزرسانی» بزنید.</string>
+    <string name="update_open_settings">باز کردن تنظیمات</string>
+    <string name="update_check_failed">به‌روزرسانی بررسی نشد. اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.</string>
+    <string name="update_missing_apk">آخرین انتشار فایل سازگار برای به‌روزرسانی گوشی سیم‌کارت‌دار ندارد.</string>
+    <string name="update_download_failed">به‌روزرسانی دانلود نشد. دوباره تلاش کنید.</string>
+    <string name="update_invalid_apk">نتوانستیم تأیید کنیم که فایل دانلودشده نسخهٔ جدیدتری از تتر است.</string>
+    <string name="update_installer_unavailable">اندروید نتوانست نصب‌کننده یا تنظیمات آن را باز کند.</string>
+    <string name="update_wait_for_call">پیش از نصب به‌روزرسانی، تماس را پایان دهید.</string>
     <string name="report_title">ارسال گزارش مشکل</string>
     <string name="report_hint">یک فایل با هر آنچه برای پیدا کردن مشکل لازم است: راه‌اندازی، جفت کردن، اتصال، تماس‌ها، صدای تماس، پیامک‌ها، مخاطبین یا اشتراک اینترنت. شماره‌ها، نام‌ها، متن پیام‌ها، ایمیل، نشانی‌ها و کلیدها حذف می‌شوند. آن را به گزارش خود در GitHub پیوست کنید.</string>
     <string name="report_preparing">در حال آماده کردن گزارش… ممکن است تا نیم دقیقه طول بکشد.</string>

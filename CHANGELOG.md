@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Android phone: **Help › Check for updates** finds stable releases on GitHub and downloads the verified gateway
+  APK. Android asks for confirmation before installing it. This is for the phone with the SIM cards.
+
 ## 1.2.5 — 2026-11-25
 
 - iPhone: Tether sets its CallKit provider up again when iOS restarted its call service under the running app. Until

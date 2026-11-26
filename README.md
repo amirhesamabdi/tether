@@ -118,6 +118,9 @@ More in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); the wire format is [protoc
 
 **Step-by-step guide: [docs/INSTALL.md](docs/INSTALL.md)** · [راهنمای فارسی](docs/fa/README.md) · [FAQ](docs/FAQ.md)
 
+On the Android phone with the SIMs, **Help › Check for updates** checks for a newer stable release on GitHub
+and can hand its verified APK to Android for installation. See [Updating the Android gateway](docs/INSTALL.md#updating-the-android-gateway).
+
 Get the files from the [latest release](https://github.com/amirwmr/tether/releases/latest):
 
 | File | Install it on |

@@ -38,6 +38,9 @@ import app.tether.link.LinkLog
 import app.tether.link.LinkService
 import app.tether.report.PhoneReport
 import app.tether.report.ReportUi
+import app.tether.telecom.CallRegistry
+import app.tether.update.AppUpdates
+import app.tether.update.UpdateFiles
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
@@ -72,12 +75,14 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         app.hub.addListener(listener)
+        app.updates.onChange = { render() }
         render()
         tick()
     }
 
     override fun onPause() {
         app.hub.removeListener(listener)
+        app.updates.onChange = null
         main.removeCallbacksAndMessages(null)
         super.onPause()
     }
@@ -267,6 +272,77 @@ class MainActivity : Activity() {
         val help = card(getString(R.string.section_help))
         help.addView(label(getString(R.string.report_hint), R.color.muted, 13f))
         help.addView(button(getString(R.string.report_title)) { ReportUi.send(this) { PhoneReport.build(app) } })
+        showUpdates(help)
+    }
+
+    private fun showUpdates(help: LinearLayout) {
+        val updates = app.updates
+        fun status(message: String) = help.addView(label(message, R.color.muted, 13f))
+        fun check() = help.addView(button(getString(R.string.update_check), secondary = true) { updates.check() })
+
+        when (val state = updates.state) {
+            AppUpdates.State.Idle -> check()
+            AppUpdates.State.Checking -> status(getString(R.string.update_checking))
+            AppUpdates.State.Current -> {
+                status(getString(R.string.update_current))
+                check()
+            }
+            is AppUpdates.State.Available -> {
+                status(getString(R.string.update_available, state.release.version))
+                help.addView(button(getString(R.string.update_download), secondary = true) { updates.download() })
+            }
+            is AppUpdates.State.Downloading -> status(getString(R.string.update_downloading, state.release.version))
+            is AppUpdates.State.Ready -> {
+                status(getString(R.string.update_ready, state.release.version))
+                help.addView(button(getString(R.string.update_install), secondary = true) { installUpdate(state) })
+                check()
+            }
+            is AppUpdates.State.Failed -> {
+                status(getString(when (state.reason) {
+                    AppUpdates.Failure.CHECK -> R.string.update_check_failed
+                    AppUpdates.Failure.MISSING -> R.string.update_missing_apk
+                    AppUpdates.Failure.DOWNLOAD -> R.string.update_download_failed
+                    AppUpdates.Failure.INVALID -> R.string.update_invalid_apk
+                }))
+                check()
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION") // Launch the system confirmation screen for this user-requested APK install.
+    private fun installUpdate(ready: AppUpdates.State.Ready) {
+        if (!ready.file.isFile) {
+            app.updates.check()
+            return
+        }
+        if (CallRegistry.active().isNotEmpty()) {
+            Toast.makeText(this, R.string.update_wait_for_call, Toast.LENGTH_LONG).show()
+            return
+        }
+        if (!packageManager.canRequestPackageInstalls()) {
+            AlertDialog.Builder(this).setTitle(R.string.update_install)
+                .setMessage(R.string.update_install_permission)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.update_open_settings) { _, _ ->
+                    openUpdateActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.fromParts("package", packageName, null)))
+                }.show()
+            return
+        }
+        openUpdateActivity(Intent(Intent.ACTION_INSTALL_PACKAGE)
+            .setDataAndType(UpdateFiles.uri(this, ready.file), UpdateFiles.APK_MIME)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+    }
+
+    private fun openUpdateActivity(intent: Intent) {
+        runCatching {
+            // Only send the APK's read grant to a system installer, never to a third-party intent handler.
+            val flags = PackageManager.MATCH_SYSTEM_ONLY or PackageManager.MATCH_DEFAULT_ONLY
+            val target = packageManager.queryIntentActivities(intent, flags).firstOrNull()?.activityInfo
+                ?: throw android.content.ActivityNotFoundException()
+            startActivity(intent.setClassName(target.packageName, target.name))
+        }.onFailure {
+            Toast.makeText(this, R.string.update_installer_unavailable, Toast.LENGTH_LONG).show()
+        }
     }
 
     /**

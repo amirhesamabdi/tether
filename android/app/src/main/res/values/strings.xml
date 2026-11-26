@@ -124,6 +124,22 @@
     <string name="adb_paired_no_connect">Paired, but could not connect yet (%1$s). Tether tries again while Wireless debugging is on.</string>
     <!-- Help › problem report -->
     <string name="section_help">Help</string>
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking GitHub for updates…</string>
+    <string name="update_current">No newer stable version is available.</string>
+    <string name="update_available">Tether %1$s is available on GitHub.</string>
+    <string name="update_download">Download update</string>
+    <string name="update_downloading">Downloading Tether %1$s…</string>
+    <string name="update_ready">Tether %1$s is ready to install.</string>
+    <string name="update_install">Install update</string>
+    <string name="update_install_permission">Android needs your permission to install updates from Tether. Allow this source in Settings, return here, and tap Install update again.</string>
+    <string name="update_open_settings">Open Settings</string>
+    <string name="update_check_failed">Could not check for updates. Check your internet connection and try again.</string>
+    <string name="update_missing_apk">The latest release has no compatible gateway update.</string>
+    <string name="update_download_failed">Could not download the update. Try again.</string>
+    <string name="update_invalid_apk">The download could not be verified as a newer Tether update.</string>
+    <string name="update_installer_unavailable">Android could not open the installer or its settings.</string>
+    <string name="update_wait_for_call">Finish your call before installing the update.</string>
     <string name="report_title">Send a problem report</string>
     <string name="report_hint">One file with what is needed to find a problem with setup, pairing, the link, calls, call audio, texts, contacts or tethering. Phone numbers, names, message text, e-mail, addresses and keys are left out. Attach it to your issue on GitHub.</string>
     <string name="report_preparing">Preparing the report… This can take up to half a minute.</string>

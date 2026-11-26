@@ -8,6 +8,7 @@ import android.database.MatrixCursor
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
+import app.tether.update.UpdateFiles
 import java.io.File
 import java.io.FileNotFoundException
 import java.text.SimpleDateFormat
@@ -15,14 +16,15 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Serves the problem report (a `.txt` file in the app's cache) to the app the user shares it with, read-only and only
- * with the permission the share grants. Not exported; nothing else of the app is reachable through it.
+ * Serves a problem report or a verified gateway update from private cache. The receiving app only gets read access
+ * to the URI Tether grants it. The provider is not exported.
  */
 class ReportProvider : ContentProvider() {
     override fun onCreate() = true
 
     private fun fileOf(uri: Uri): File {
         val ctx = context ?: throw FileNotFoundException()
+        if (uri.pathSegments.firstOrNull() == UpdateFiles.PATH) return UpdateFiles.openableFile(ctx, uri)
         val name = uri.lastPathSegment ?: throw FileNotFoundException()
         // Only plain report names in the report folder: no path tricks.
         if (!NAME.matches(name)) throw FileNotFoundException(name)
@@ -34,7 +36,7 @@ class ReportProvider : ContentProvider() {
         return ParcelFileDescriptor.open(fileOf(uri), ParcelFileDescriptor.MODE_READ_ONLY)
     }
 
-    override fun getType(uri: Uri) = "text/plain"
+    override fun getType(uri: Uri) = if (uri.pathSegments.firstOrNull() == UpdateFiles.PATH) UpdateFiles.APK_MIME else "text/plain"
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor {
         val f = fileOf(uri)

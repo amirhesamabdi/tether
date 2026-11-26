@@ -11,6 +11,7 @@ import app.tether.data.SmsRepo
 import app.tether.link.Hub
 import app.tether.link.Keys
 import app.tether.telecom.CallRegistry
+import app.tether.update.AppUpdates
 
 class TetherApp : Application() {
     lateinit var keys: Keys; private set
@@ -21,6 +22,7 @@ class TetherApp : Application() {
     lateinit var lists: app.tether.data.Lists; private set
     lateinit var hub: Hub; private set
     val prefs by lazy { getSharedPreferences("app", Context.MODE_PRIVATE) }
+    internal val updates by lazy { AppUpdates(this) }
 
     override fun onCreate() {
         super.onCreate()
