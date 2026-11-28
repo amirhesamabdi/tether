@@ -212,4 +212,20 @@
     <string name="select_none">Select none</string>
     <string name="done_selecting">Done selecting</string>
     <string name="delete_calls_confirm">Delete %d calls from the Android phone\'s call log?</string>
+
+    <string name="link_more_options">More Link options</string>
+    <string name="link_brand" translatable="false">Tether</string>
+    <string name="link_subtitle">Connect to your phone</string>
+    <string name="link_connected">Connected</string>
+    <string name="link_latency">Round trip</string>
+    <string name="link_latency_ms">%1$d ms</string>
+    <string name="link_transport">Transport</string>
+    <string name="link_network">Network</string>
+    <string name="link_network_transport">Tether Direct (%1$s)</string>
+    <string name="link_pairing">Pairing</string>
+    <string name="link_pairing_subtitle">Manage your paired phone</string>
+    <string name="link_diagnostics">Diagnostics</string>
+    <string name="link_diagnostics_subtitle">Connection and logs</string>
+    <string name="link_sim_signal">Cellular signal %1$d/4 %2$s</string>
+    <string name="link_plugged">(plugged in)</string>
 </resources>

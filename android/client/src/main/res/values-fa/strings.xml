@@ -211,4 +211,19 @@
     <string name="select_none">لغو انتخاب همه</string>
     <string name="done_selecting">پایان انتخاب</string>
     <string name="delete_calls_confirm">%d تماس از گزارش تماس گوشی اندروید حذف شوند؟</string>
+
+    <string name="link_more_options">گزینه‌های بیشتر اتصال</string>
+    <string name="link_subtitle">به گوشی خود وصل شوید</string>
+    <string name="link_connected">متصل</string>
+    <string name="link_latency">زمان رفت‌وبرگشت</string>
+    <string name="link_latency_ms">%1$d میلی‌ثانیه</string>
+    <string name="link_transport">نوع اتصال</string>
+    <string name="link_network">شبکه</string>
+    <string name="link_network_transport">اتصال مستقیم Tether ‏(%1$s)</string>
+    <string name="link_pairing">جفت‌سازی</string>
+    <string name="link_pairing_subtitle">مدیریت گوشی جفت‌شده</string>
+    <string name="link_diagnostics">عیب‌یابی</string>
+    <string name="link_diagnostics_subtitle">اتصال و گزارش‌ها</string>
+    <string name="link_sim_signal">سیگنال شبکهٔ موبایل %1$d از ۴ %2$s</string>
+    <string name="link_plugged">(متصل به برق)</string>
 </resources>

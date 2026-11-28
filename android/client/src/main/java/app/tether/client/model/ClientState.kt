@@ -255,23 +255,34 @@ class ClientState(private val link: LinkPort, private val fx: Effects) {
 
     // ------------------------------------------------------------------ network switches
 
+    private class NetworkRequest(val id: Int)
+    private var netWrite: NetworkRequest? = null
+
     private fun netRequest(pending: String, body: JSONObject) {
-        if (!link.isConnected) return
+        if (!link.isConnected || netPending != null) return
         netPending = pending
         netError = null
-        link.send(T.NET_SET, body, expectReply = true)
+        val id = link.send(T.NET_SET, body, expectReply = true)
+        if (id == 0) { netPending = null; netError = Problem.NO_ANSWER; fx.changed(); return }
+        val request = NetworkRequest(id)
+        netWrite = request
         // A lost reply must not leave the switches greyed out for ever.
-        fx.schedule(35_000) { if (netPending == pending) { netPending = null; netError = Problem.NO_ANSWER; fx.changed() } }
+        fx.schedule(35_000) {
+            if (netWrite === request) {
+                netWrite = null; netPending = null; netError = Problem.NO_ANSWER; fx.changed()
+            }
+        }
         fx.changed()
     }
 
     fun setNet(what: String, on: Boolean) = netRequest(what, JSONObject().put("what", what).put("on", on))
     fun setDataSim(sub: Int) = netRequest("dataSub", JSONObject().put("what", "dataSub").put("on", true).put("sub", sub))
     fun setNetworkMode(slot: Int, mode: String) = netRequest("rat$slot", JSONObject().put("what", "rat").put("on", true).put("slot", slot).put("mode", mode))
-    private var netAskedAt = 0L
+    private var netAskedAt: Long? = null
+    var hasLiveStatus = false; private set
     /** Asks for the switches' state (at most every 10 s: the Link screen asks on every redraw until it has one). */
     fun refreshNet() {
-        if (!link.isConnected || fx.now() - netAskedAt < 10_000) return
+        if (!link.isConnected || netAskedAt?.let { fx.now() - it < 10_000 } == true) return
         netAskedAt = fx.now()
         link.send(T.NET_GET, JSONObject(), expectReply = true)
     }
@@ -391,14 +402,22 @@ class ClientState(private val link: LinkPort, private val fx: Effects) {
         // placeholder; an unconfirmed one turns Not delivered after 2 min, never resent).
         pendingSms.clear()
         syncing = false
+        hasLiveStatus = false
+        net = null
+        netAskedAt = null
+        netError = null
         netPending = null
+        netWrite = null
         fx.changed()
     }
 
     /** A control message that is not about calls or call audio. Returns false when it was not one of ours. */
     fun received(t: String, b: JSONObject, re: Int?): Boolean {
         when (t) {
-            T.STATUS -> status = b   // saved with the next real change
+            T.STATUS -> {
+                status = b   // saved with the next real change
+                hasLiveStatus = true
+            }
             T.SMS_BATCH -> {
                 val items = b.optJSONArray("items").mapObjects(::smsOf)
                 val recent = fx.now() - 6 * 3600_000L
@@ -507,7 +526,7 @@ class ClientState(private val link: LinkPort, private val fx: Effects) {
                 } else net = b
                 netError = b.optStringOrNull("err")
                 // A state pushed because another client flipped a switch must not clear our own pending one.
-                if (re != null) netPending = null
+                if (re != null && re == netWrite?.id) { netPending = null; netWrite = null }
             }
             T.SELFTEST_RESULT -> selftest = b
             T.USSD_RESULT -> {

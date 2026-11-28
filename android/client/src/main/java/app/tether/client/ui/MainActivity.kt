@@ -30,6 +30,7 @@ import android.widget.ListView
 import android.widget.ScrollView
 import android.widget.Switch
 import android.widget.TextView
+import android.widget.PopupMenu
 import app.tether.client.R
 import app.tether.client.link.BleCentral
 import app.tether.client.link.LinkService
@@ -56,6 +57,9 @@ class MainActivity : Activity() {
     private var listFrame: FrameLayout? = null
     private var dayBubble: TextView? = null
     private var listTab = -1
+    private val linkViews by lazy { LinkViews(this) }
+    private var linkSection: LinkSection? = null
+    private var revealLinkSection = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -798,41 +802,132 @@ class MainActivity : Activity() {
 
     // ------------------------------------------------------------------ Link
 
+    private enum class LinkSection(val title: Int) {
+        NETWORK(R.string.link_network), PAIRING(R.string.link_pairing), DIAGNOSTICS(R.string.link_diagnostics)
+    }
+
+    private fun openLinkSection(section: LinkSection) {
+        linkSection = section
+        revealLinkSection = true
+        linkTab()
+    }
+
+    private fun showLinkOverflow(anchor: View) {
+        PopupMenu(this, anchor).apply {
+            menu.add(0, R.string.link_log, 0, R.string.link_log)
+            menu.add(0, R.string.link_pairing, 1, R.string.link_pairing)
+            setOnMenuItemClickListener {
+                if (it.itemId == R.string.link_log) showLog() else {
+                    openLinkSection(LinkSection.PAIRING)
+                }
+                true
+            }
+            show()
+        }
+    }
+
     private fun linkTab() {
-        val lv = list
-        val keepScroll = (content.getChildAt(0) as? ScrollView)?.takeIf { listTab == TAB_LINK && lv == null }?.scrollY ?: 0
+        val reveal = revealLinkSection
+        revealLinkSection = false
+        val keepScroll = (content.getChildAt(0) as? ScrollView)?.takeIf { listTab == TAB_LINK }?.scrollY ?: 0
         list = null; listTab = TAB_LINK
         content.removeAllViews()
         val s = app.state
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), dp(4), dp(12), dp(24)) }
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(8), dp(16), dp(20)) }
         val connected = app.link.isConnected
-
-        // The Android phone
-        val phone = card()
-        val st = s.status
-        phone.addView(label(app.identity.peerName ?: getString(R.string.android_phone), size = 18f, bold = true))
-        phone.addView(label(when (app.linkState) {
-            BleCentral.State.CONNECTED -> getString(R.string.state_connected_via, app.transport.uppercase())
+        val transport = app.transport.takeIf { connected && it != "none" }?.uppercase()
+        val status = when (app.linkState) {
+            BleCentral.State.CONNECTED -> getString(if (connected) R.string.link_connected else R.string.state_connecting)
             BleCentral.State.OFF -> getString(R.string.state_bt_off)
             BleCentral.State.UNPAIRED -> getString(R.string.state_unpaired)
             BleCentral.State.SEARCHING -> getString(R.string.state_searching)
             BleCentral.State.HANDSHAKING, BleCentral.State.CONNECTING -> getString(R.string.state_connecting)
-        }, if (connected) R.color.ok else R.color.muted))
-        if (st != null) phone.addView(label(getString(R.string.battery, st.optInt("battery"), if (st.optBoolean("charging")) " ⚡" else ""), R.color.muted, 14f))
-        // The low-battery alert for the Android phone, chosen here: off or a level; it also alerts at every 5 % below.
+        }
+        val hostStatus = s.status
+        val battery = hostStatus?.optInt("battery", -1)?.takeIf { connected && it in 0..100 }
+            ?.let { getString(R.string.battery, it, if (hostStatus.optBoolean("charging")) getString(R.string.link_plugged) else "") }
+        linkViews.heading(box, overflow = ::showLinkOverflow)
+        box.addView(linkViews.host(app.identity.peerName ?: getString(R.string.android_phone), status, connected, battery, transport))
+        box.addView(linkViews.metrics(
+            app.link.roundTripMs?.takeIf { connected }?.let { getString(R.string.link_latency_ms, it) } ?: "—",
+            transport ?: "—",
+        ))
+        box.addView(linkViews.card().apply {
+            addView(linkViews.setting(R.drawable.ic_link_network, R.string.link_network,
+                transport?.let { getString(R.string.link_network_transport, it) } ?: status) { openLinkSection(LinkSection.NETWORK) })
+            addView(linkViews.separator())
+            addView(linkViews.setting(R.drawable.ic_link_bluetooth, R.string.link_pairing,
+                getString(R.string.link_pairing_subtitle)) { openLinkSection(LinkSection.PAIRING) })
+            addView(linkViews.separator())
+            addView(linkViews.setting(R.drawable.ic_link_diagnostics, R.string.link_diagnostics,
+                getString(R.string.link_diagnostics_subtitle)) { openLinkSection(LinkSection.DIAGNOSTICS) })
+        })
+        if (connected && s.net == null && s.netPending == null) s.refreshNet()
+        val details = when (linkSection) {
+            LinkSection.NETWORK -> linkNetwork(connected, status)
+            LinkSection.PAIRING -> linkPairing()
+            LinkSection.DIAGNOSTICS -> linkDiagnostics(connected)
+            null -> null
+        }
+        details?.let { box.addView(it) }
         if (app.identity.isPaired) {
-            val n = app.notifier
-            fun word(v: Int) = if (v == 0) getString(R.string.battery_alert_off) else "$v %"
-            phone.addView(row(
-                label(getString(R.string.battery_alert), size = 15f).weight(),
-                button(word(n.batteryAlert), Look.TONAL, iconId = R.drawable.ic_battery_alert) {
-                    val choices = BatteryAlert.CHOICES
-                    AlertDialog.Builder(this).setTitle(R.string.battery_alert)
-                        .setSingleChoiceItems(choices.map(::word).toTypedArray(), choices.indexOf(n.batteryAlert)) { d, w -> n.batteryAlert = choices[w]; d.dismiss(); render() }
-                        .setNegativeButton(android.R.string.cancel, null).show()
-                }.apply { contentDescription = getString(R.string.battery_alert) + ", " + word(n.batteryAlert) },
-            ))
-            phone.addView(label(getString(R.string.battery_alert_help), R.color.muted, 12f))
+            val card = linkViews.card(14)
+            // The low-battery alert for the Android phone, chosen here: off or a level; it also alerts at every 5 % below.
+            run {
+                val n = app.notifier
+                fun word(v: Int) = if (v == 0) getString(R.string.battery_alert_off) else "$v %"
+                card.addView(row(
+                    label(getString(R.string.battery_alert), size = 15f).weight(),
+                    button(word(n.batteryAlert), Look.TONAL, iconId = R.drawable.ic_battery_alert) {
+                        val choices = BatteryAlert.CHOICES
+                        AlertDialog.Builder(this).setTitle(R.string.battery_alert)
+                            .setSingleChoiceItems(choices.map(::word).toTypedArray(), choices.indexOf(n.batteryAlert)) { d, w -> n.batteryAlert = choices[w]; d.dismiss(); render() }
+                            .setNegativeButton(android.R.string.cancel, null).show()
+                    }.apply { contentDescription = getString(R.string.battery_alert) + ", " + word(n.batteryAlert) },
+                ))
+                card.addView(label(getString(R.string.battery_alert_help), R.color.muted, 12f))
+            }
+            box.addView(card)
+        }
+        box.addView(callsCard())
+        val sv = ScrollView(this).apply {
+            setBackgroundColor(linkViews.background)
+            isFillViewport = true
+            isVerticalScrollBarEnabled = false
+            addView(FrameLayout(this@MainActivity).apply {
+                addView(box, FrameLayout.LayoutParams(-1, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL))
+                addOnLayoutChangeListener { _, left, _, right, _, _, _, _, _ ->
+                    val width = minOf(right - left, dp(520))
+                    if (width > 0 && box.layoutParams.width != width)
+                        box.layoutParams = box.layoutParams.apply { this.width = width }
+                }
+            })
+        }
+        content.addView(sv)
+        sv.post { sv.scrollTo(0, if (reveal && details != null) details.top else keepScroll) }
+    }
+
+    private fun linkPairing(): View = linkViews.card(14).apply {
+        addView(label(getString(R.string.link_pairing), size = 18f, bold = true))
+        if (!app.identity.isPaired) addView(label(getString(R.string.pair_guide), R.color.muted, 13f))
+        addView(button(getString(if (app.identity.isPaired) R.string.pair_again else R.string.pair), if (app.identity.isPaired) Look.TONAL else Look.FILLED) {
+            startActivity(Intent(this@MainActivity, PairActivity::class.java))
+        })
+        if (app.identity.isPaired) addView(button(getString(R.string.unpair), Look.TEXT, R.color.bad) {
+            AlertDialog.Builder(this@MainActivity).setMessage(R.string.unpair_confirm)
+                .setPositiveButton(R.string.unpair) { _, _ -> app.unpair() }
+                .setNegativeButton(android.R.string.cancel, null).show()
+        })
+    }
+
+    private fun linkNetwork(connected: Boolean, status: String): View {
+        val s = app.state
+        val phone = linkViews.card(14)
+        val st = s.status.takeIf { connected && s.hasLiveStatus }
+        val liveSims = if (st != null) s.sims else emptyList()
+        phone.addView(label(getString(R.string.link_network), size = 18f, bold = true))
+        app.transport.takeIf { connected && it != "none" }?.let {
+            phone.addView(label(getString(R.string.link_network_transport, it.uppercase()), R.color.muted, 13f))
         }
         // The Android phone cannot bridge call audio (Android 8-10, or its software gives none): calls stay on it.
         when (st?.optJSONObject("helper")?.optString("audio")) {
@@ -845,34 +940,19 @@ class MainActivity : Activity() {
             else if (h.optBoolean("needsWifi")) phone.addView(label(getString(R.string.helper_needs_wifi), R.color.muted, 13f))
             if (h.optString("state") == "running" && h.optBoolean("stopsOnUnplug")) phone.addView(label(getString(R.string.helper_stops_on_unplug), R.color.warn, 13f))
         }
-        for (sim in s.sims) {
-            val bars = "▂▄▆█".take(sim.signal.coerceIn(0, 4)).padEnd(4, '·')
+        for (sim in liveSims) {
             val line = listOfNotNull(sim.name.ifEmpty { getString(R.string.sim_n, sim.slot + 1) }, sim.carrier.takeIf { it.isNotEmpty() && it != sim.name },
-                if (sim.hasService) "$bars ${sim.net ?: ""}".trim() else getString(R.string.no_service), if (sim.roaming) "R" else null).joinToString(" · ")
+                if (sim.hasService) getString(R.string.link_sim_signal, sim.signal.coerceIn(0, 4), sim.net.orEmpty()).trim() else getString(R.string.no_service), if (sim.roaming) "R" else null).joinToString(" · ")
             phone.addView(label(line, size = 14f))
         }
         st?.optJSONArray("clients")?.let { a ->
             val names = (0 until a.length()).map { a.getJSONObject(it) }.map { (if (it.optBoolean("self")) "● " else "○ ") + it.optString("name") + if (it.optBoolean("audio")) " ♪" else "" }
             if (names.size > 1) phone.addView(label(getString(R.string.clients, names.joinToString("  ")), R.color.muted, 13f))
         }
-        // Not paired yet: how to start, in plain words.
-        if (!app.identity.isPaired) phone.addView(label(getString(R.string.pair_guide), R.color.muted, 13f))
-        phone.addView(row(
-            button(getString(if (app.identity.isPaired) R.string.pair_again else R.string.pair), if (app.identity.isPaired) Look.TONAL else Look.FILLED) {
-                startActivity(Intent(this, PairActivity::class.java))
-            },
-            *(if (app.identity.isPaired) arrayOf(button(getString(R.string.unpair), Look.TEXT, R.color.bad) {
-                AlertDialog.Builder(this).setMessage(R.string.unpair_confirm).setPositiveButton(R.string.unpair) { _, _ -> app.unpair() }
-                    .setNegativeButton(android.R.string.cancel, null).show()
-            }) else emptyArray()),
-        ))
-        box.addView(phone)
-
         // Switches
         if (connected) {
-            if (s.net == null && s.netPending == null) s.refreshNet()
             val net = s.net
-            val sw = card()
+            val sw = phone
             sw.addView(label(getString(R.string.switches).uppercase(), R.color.accent, 12f, bold = true))
             val can = net?.optJSONObject("can")
             fun toggle(title: Int, what: String, on: Boolean?, shown: Boolean = true) {
@@ -884,26 +964,23 @@ class MainActivity : Activity() {
                     setOnCheckedChangeListener { _, v -> if (v != on) s.setNet(what, v) }
                 })
             }
-            toggle(R.string.mobile_data, "data", net?.optBoolean("data"))
-            toggle(R.string.hotspot, "hotspot", net?.optBoolean("hotspot"), can?.optBoolean("hotspot", true) ?: true)
-            toggle(R.string.bt_tethering, "bt", net?.optBoolean("bt"), can?.optBoolean("bt", true) ?: true)
-            toggle(R.string.airplane, "airplane", net?.optBoolean("airplane"))
-            toggle(R.string.share_vpn, "share", net?.optBoolean("share"))
+            fun current(key: String) = net?.opt(key) as? Boolean
+            toggle(R.string.mobile_data, "data", current("data"))
+            toggle(R.string.hotspot, "hotspot", current("hotspot"), can?.optBoolean("hotspot", true) ?: true)
+            toggle(R.string.bt_tethering, "bt", current("bt"), can?.optBoolean("bt", true) ?: true)
+            toggle(R.string.airplane, "airplane", current("airplane"))
+            toggle(R.string.share_vpn, "share", current("share"))
             if (net?.optBoolean("vpn") == true) sw.addView(label(getString(R.string.vpn_up), R.color.ok, 13f))
             net?.optJSONObject("proxy")?.optJSONArray("addrs")?.let { a ->
                 if (net.optBoolean("share")) for (i in 0 until a.length()) a.getJSONObject(i).let { ad ->
                     sw.addView(label("${ad.optString("kind")}: ${ad.optString("ip")}:${net.optJSONObject("proxy")?.optInt("port")}  ·  ${ad.optString("pac")}", R.color.muted, 12f).apply { setTextIsSelectable(true) })
                 }
             }
-            val sims = s.sims
-            if (sims.size > 1) {
+            val sims = liveSims
+            if (sims.size > 1 && net?.has("dataSub") == true) {
                 val dataSub = net?.optInt("dataSub", -1) ?: -1
-                // The data SIM: one choice per SIM, the chosen one filled.
-                sw.addView(label(getString(R.string.data_sim), size = 16f).apply { setPadding(0, dp(10), 0, 0) })
-                sw.addView(evenRow(*sims.map { sim ->
-                    button(sim.name.ifEmpty { getString(R.string.sim_n, sim.slot + 1) }, if (sim.sub == dataSub) Look.FILLED else Look.TONAL) {
-                        if (sim.sub != dataSub) s.setDataSim(sim.sub)
-                    }.apply { isEnabled = s.netPending == null; isSelected = sim.sub == dataSub }
+                sw.addView(row(label(getString(R.string.data_sim), size = 16f).weight(), *sims.map { sim ->
+                    button(sim.name.ifEmpty { getString(R.string.sim_n, sim.slot + 1) }, if (sim.sub == dataSub) Look.FILLED else Look.TONAL) { if (sim.sub != dataSub) s.setDataSim(sim.sub) }.apply { isEnabled = s.netPending == null; isSelected = sim.sub == dataSub }
                 }.toTypedArray()))
             }
             for (sim in sims) {
@@ -912,18 +989,22 @@ class MainActivity : Activity() {
                     button(mode ?: "–", Look.TONAL) {
                         val modes = arrayOf("5G", "4G", "3G", "2G")
                         AlertDialog.Builder(this).setItems(modes) { _, w -> s.setNetworkMode(sim.slot, modes[w]) }.show()
-                    }))
+                    }.apply { isEnabled = s.netPending == null && !mode.isNullOrBlank() }))
             }
             s.netPending?.let { sw.addView(label(getString(R.string.waiting_for_phone), R.color.muted, 13f)) }
             s.netError?.let { sw.addView(label(if (it == "no_answer") getString(R.string.err_no_answer) else it, R.color.warn, 13f)) }
-            box.addView(sw)
+
         }
 
-        // Calls: in the Phone app (a calling account per SIM) or in this app's own call screen.
-        box.addView(callsCard())
 
-        // This phone
-        val me = card()
+        if (!connected) phone.addView(label(status, R.color.muted, 14f))
+        return phone
+    }
+
+    private fun linkDiagnostics(connected: Boolean): View {
+        val s = app.state
+
+        val me = linkViews.card(14)
         me.addView(label(getString(R.string.this_phone).uppercase(), R.color.accent, 12f, bold = true))
         val pm = getSystemService(PowerManager::class.java)
         if (!pm.isIgnoringBatteryOptimizations(packageName)) me.addView(button(getString(R.string.allow_background), Look.OUTLINED) {
@@ -936,17 +1017,14 @@ class MainActivity : Activity() {
         ))
         me.addView(label(getString(R.string.report_hint), R.color.muted, 13f))
         me.addView(row(
-            button(getString(R.string.link_log), Look.TEXT) { showLog() },
-            *(if (connected) arrayOf(button(getString(R.string.selftest), Look.TEXT) { s.runSelftest() }) else emptyArray()),
+            button(getString(R.string.link_log), Look.TONAL) { showLog() },
+            *(if (connected) arrayOf(button(getString(R.string.selftest), Look.TONAL) { s.runSelftest() }) else emptyArray()),
         ))
         s.selftest?.let { t ->
             val m = t.optJSONArray("methods")
             me.addView(label((0 until (m?.length() ?: 0)).joinToString("\n") { i -> m!!.getJSONObject(i).let { "${if (it.optBoolean("ok")) "✓" else "✗"} ${it.optString("name")} ${it.optString("note")}" } }, R.color.muted, 12f))
         }
-        box.addView(me)
-        val sv = ScrollView(this).apply { addView(box) }
-        content.addView(sv)
-        sv.post { sv.scrollTo(0, keepScroll) }
+        return me
     }
 
     /**
