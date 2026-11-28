@@ -87,6 +87,11 @@ The iPhone app and the Android client follow these rules; a client of your own s
 - **Expect gaps.** With Bluetooth tethering on the same two phones, audio can stall for several hundred milliseconds.
   `PlayoutBuffer` keeps a stall's backlog and drains it in pauses (it cuts only beyond
   `PlayoutBuffer.maxBacklogSeconds`); if you write your own buffer, do not drop speech after every gap.
+- **Play µ-law at the rate its frames carry, and start afresh on every `audio.start`.** Frames are 20 ms, so a G.711
+  frame's length is its rate / 50: the phone app 1.2.6 sent 16 kHz µ-law announced as 8 kHz after a mid-call reconnect
+  (`DownlinkRate.of` handles it; send your microphone at that rate too). A new `audio.start` during a call restarts the
+  frame numbers at 0: drop what is queued and restart the arrival statistics (`PlayoutBuffer.reset()`; a gap of more
+  than `PlayoutBuffer.restartGapMs` restarts them by itself).
 - **Answer wake notifications.** When the wake characteristic notifies, send something at once (a ping): the phone
   closes a session that stays silent after a wake. With no session, or one that does not answer, start a new one;
   do the same when the phone's Tether service changes (`didModifyServices`). `TetherLink` does all of this.
@@ -128,7 +133,7 @@ In Xcode: Product › Build Documentation. The wire format itself is specified i
 | Records (§2, §4) | `Record`, `RecordKind`, `RecordReader` (reassembles a byte stream), `SecureSession` (AES-256-GCM, strict counters), `SessionError`, `FramingError`, `Proto` (channels, lengths) |
 | Control messages (§5) | `Control` (encode / decode the `{t, id, re, b}` envelope), `MessageHeader`, `MsgType` (every type name), one `Codable` struct per body: `StatusBody` (with `helper.audio` / `audioUnavailable` since 1.2), `SyncBody`, `Sms`, `SmsNew`, `SmsBatch`, `SmsSend`, `Contact`, `ContactsBatch`, `CallInfo`, `CallEntry`, `CallsBatch`, `NetState`, `BlockLists`, `SyncIds`, … |
 | Call audio | `AudioFrame` (channel 1 payload), `AudioStart`, `LibOpusEncoder`, `LibOpusDecoder` (with packet-loss concealment), `G711`, `PlayoutBuffer` (stall backlog kept and drained in pauses since 1.2: `maxBacklogSeconds`, `speechTrimmed`), `SampleRing`, `JitterBuffer` |
-| Call rules | `HangUpGuard` (late call states after a local hang-up) |
+| Call rules | `HangUpGuard` (late call states after a local hang-up), `CallEndTone` / `CallEndToneGenerator` (the busy and failure tones of `call.state` `tone`), `DownlinkRate` (the rate a µ-law frame carries) |
 | Text | `MessageText` / `ParsedMessage` (links, numbers, e-mail, one-time codes, `*bold*`), `OTPExtractor`, `PhoneNumber`, `PhoneFormat` (grouping by country), `DialLink` (`tel:` links, numbers in free text), `NumberShape`, `SearchText`, `UssdCode` |
 | Bluetooth link (Apple) | `TetherLink`, `TetherLinkDelegate`, `IdentityStore`, `TetherUUID` |
 

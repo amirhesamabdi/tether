@@ -35,6 +35,27 @@
   before, the link log says why, and calls on that phone are not bridged ("blocked") until a system update, a new
   Tether version, choosing the phone's mic setting again, or a self-test that hears the call (#26).
 
+### iPhone and Android client
+
+- Call audio after a reconnect: a call whose link dropped and came back now sounds right at once. The Android phone
+  app 1.2.6 sent its 16 kHz audio as G.711 "at 8 kHz" when it moved a running call to a client that had just
+  reconnected; the iPhone played it at half speed and threw away the other half (a Galaxy A54 call of 2026-11-28:
+  `drained 8826 ms` of 434 frames, `drift 996668 ppm`), and the phone got half of the iPhone's voice. Both clients now
+  play µ-law frames, and send the microphone, at the rate the frames carry (`DownlinkRate`, the link log says so).
+- Playout: a gap of more than 2 s (a relink, a new session) or a new `audio.start` during a call starts the arrival
+  statistics and the drift estimate again. Before, every frame after such a gap was measured against the clock from
+  before it, so the buffer never adapted to the link again for the rest of the call.
+- Busy and failed calls: when the Android phone reports that a call ended busy or that the network failed it (protocol
+  `tone`), the iPhone and the Android client play the busy tone (425 Hz, 0.5 s on / 0.5 s off) or the congestion tone
+  (0.2 s / 0.2 s) for 3 seconds and show **Busy** / **Call failed**, then end the call. Ending the call stops the
+  tone at once; a new call does too. Before, the call just disappeared.
+- Call screen: **No call audio: turn on Wi-Fi on the Android phone for a moment** while the phone's audio helper is
+  stopped and cannot start without Wi-Fi (status `helper.noCallAudio`, or a stopped helper with `why` "wifi"), so a
+  call is no longer silent without a word (#26). The Link tab (iPhone) and the Phone card (Android client) also warn
+  when unplugging the USB cable would stop call audio (`helper.stopsOnUnplug`).
+- Call figures: the iPhone's and the Android client's call line now counts the far end's speech frames
+  (`speech N frames`), so a "no sound" report shows whether speech arrived at all.
+
 ## 1.2.6 — 2026-11-28
 
 ### Call audio and the link (#13, #14, #25, #26, #29)

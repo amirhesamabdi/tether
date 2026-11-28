@@ -296,3 +296,6 @@
 "Building the report…" = "در حال ساخت گزارش…";
 "Share" = "اشتراک‌گذاری";
 "Phone numbers, names, message text, e-mail, addresses and keys are removed. Read it before you post it." = "شماره‌ها، نام‌ها، متن پیام‌ها، ایمیل، نشانی‌ها و کلیدها حذف شده‌اند. پیش از ارسال، آن را بخوانید.";
+"Busy" = "مشغول";
+"No call audio: turn on Wi-Fi on the Android phone for a moment." = "صدای تماس نیست: Wi-Fi گوشی اندروید را یک لحظه روشن کنید.";
+"Unplugging the USB cable stops call audio: the Android phone restarts USB debugging and, without Wi-Fi, the audio helper does not come back. After unplugging, turn on Wi-Fi there for a few seconds." = "جدا کردن کابل USB صدای تماس را قطع می‌کند: گوشی اندروید اشکال‌زدایی USB را دوباره راه می‌اندازد و بدون Wi-Fi دستیار صدا برنمی‌گردد. پس از جدا کردن کابل، Wi-Fi آن را چند ثانیه روشن کنید.";

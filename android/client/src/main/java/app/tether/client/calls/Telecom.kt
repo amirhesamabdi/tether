@@ -384,6 +384,8 @@ class TelecomBridge(private val app: ClientApp) : CallSink {
     })
 
     override fun ringback(on: Boolean) { app.audio.ringback = on }
+    /** The connection stays (dialing or active) while the tone plays, so the call audio engine keeps running for it. */
+    override fun endTone(tone: CallEndTone?) { app.audio.endTone = tone }
 
     /** The other side answered: one short buzz, like the system Phone app; silent while the ringer is on silent. */
     override fun answered(local: String) {

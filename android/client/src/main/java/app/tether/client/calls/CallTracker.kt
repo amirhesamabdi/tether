@@ -25,6 +25,8 @@ interface CallSink {
     fun answered(local: String) {}
     /** The microphone may go to the Android phone ([CallUplink]): a call here is connected. Called on changes only. */
     fun uplink(open: Boolean) {}
+    /** The busy / failure tone of a call that just ended ([CallEndTone]); null stops it. */
+    fun endTone(tone: CallEndTone?) {}
     /** No local call is left: call audio stops. */
     fun idle()
     fun changed() {}
@@ -33,7 +35,9 @@ interface CallSink {
 
 /** What the call screen shows. */
 data class LocalCall(val local: String, val cid: String?, val number: String, val name: String?, val state: String,
-                     val incoming: Boolean, val sub: Int?, val connectedAt: Long?, val held: Boolean)
+                     val incoming: Boolean, val sub: Int?, val connectedAt: Long?, val held: Boolean,
+                     /** The call ended busy or failed and its tone plays (state "ended"): only End is left. */
+                     val endTone: CallEndTone? = null)
 
 /**
  * Maps the Android phone's calls onto the local call system and back: a port of the iPhone's CallController (CallKit)
@@ -65,8 +69,14 @@ class CallTracker(private val link: LinkPort, private val sink: CallSink, privat
     private var cancelledNumber = ""
     private var dialToken = 0
     private var uplinkOpen = false
+    /**
+     * A call the Android phone reported ended with a busy / failure tone: the local call stays while the tone plays
+     * ([CallEndTone.SECONDS]), then it ends. Ending it here, a new call or the link going stop it at once.
+     */
+    private var toneCall: LocalCall? = null
+    private var toneToken = 0
 
-    val hasCalls get() = locals.isNotEmpty() || pendingOutgoing != null
+    val hasCalls get() = locals.isNotEmpty() || pendingOutgoing != null || toneCall != null
     fun cidOf(local: String) = cids[local]
     fun localOf(cid: String) = locals[cid]
 
@@ -76,6 +86,7 @@ class CallTracker(private val link: LinkPort, private val sink: CallSink, privat
         for ((local, c) in info) out += LocalCall(local, c.cid, c.num, nameOf(c.num) ?: c.name, c.state, c.isIncoming, c.sub,
             connectedAt[local], c.state == "holding")
         pendingOutgoing?.let { p -> if (out.none { it.local == p }) out += LocalCall(p, null, pendingNumber, nameOf(pendingNumber), "dialing", false, pendingSub, null, false) }
+        toneCall?.let { out += it }
         val order = listOf("active", "dialing", "connecting", "ringing", "holding")
         return out.sortedBy { order.indexOf(it.state).let { i -> if (i < 0) 9 else i } }
     }
@@ -112,7 +123,12 @@ class CallTracker(private val link: LinkPort, private val sink: CallSink, privat
 
         if (c.isEnded) {
             val local = locals.remove(c.cid) ?: run { sink.changed(); return }
-            cids.remove(local); info.remove(local)
+            cids.remove(local); val was = info.remove(local)
+            CallEndTone.play(c.tone, shownHere = true, ringingIncoming = prev == "ringing" && c.isIncoming)?.let { tone ->
+                playEndTone(LocalCall(local, null, c.num, nameOf(c.num) ?: c.name, "ended", c.isIncoming, c.sub ?: was?.sub,
+                    connectedAt[local], false, tone))
+                return
+            }
             val reason = when {
                 prev == "ringing" && c.isIncoming -> EndReason.UNANSWERED
                 c.cause?.contains("busy", ignoreCase = true) == true -> EndReason.BUSY
@@ -129,6 +145,7 @@ class CallTracker(private val link: LinkPort, private val sink: CallSink, privat
             val p = pendingOutgoing
             when {
                 c.isIncoming && c.state == "ringing" -> {
+                    finishEndTone(report = true)   // a new call rings: the last one's busy tone stops
                     // Report before anything else: this is what makes the phone ring.
                     val local = UUID.randomUUID().toString()
                     bind(c.cid, local); info[local] = c
@@ -208,6 +225,31 @@ class CallTracker(private val link: LinkPort, private val sink: CallSink, privat
 
     private fun bind(cid: String, local: String) { locals[cid] = local; cids[local] = cid }
 
+    /** The far end was busy or the network failed the call: the tone plays, the call screen says so, then it ends. */
+    private fun playEndTone(call: LocalCall) {
+        finishEndTone(report = true)
+        val tone = call.endTone ?: return
+        sink.log("call ended: ${tone.wire} tone for ${CallEndTone.SECONDS.toInt()} s")
+        toneCall = call
+        val token = ++toneToken
+        sink.ringback(false)
+        sink.endTone(tone)
+        updateUplink()
+        sink.changed()
+        schedule((CallEndTone.SECONDS * 1000).toLong()) { if (toneToken == token) finishEndTone(report = true) }
+    }
+
+    /** Stops the end tone; [report]: end the local call (not when it is being ended here already). */
+    private fun finishEndTone(report: Boolean) {
+        val c = toneCall ?: return
+        toneCall = null
+        toneToken++
+        sink.endTone(null)
+        if (report) sink.ended(c.local, if (c.endTone == CallEndTone.BUSY) EndReason.BUSY else EndReason.FAILED)
+        cleanup(c.local)
+        sink.changed()
+    }
+
     private fun cleanup(local: String) {
         answeredHere.remove(local); holdRequested.remove(local); connectedAt.remove(local)
         placedHere.remove(local); answerCueGiven.remove(local)
@@ -229,6 +271,7 @@ class CallTracker(private val link: LinkPort, private val sink: CallSink, privat
 
     /** Link lost: the calls can no longer be controlled from here, so they end here (they go on on the Android phone). */
     fun linkLost() {
+        finishEndTone(report = true)
         for (local in locals.values) sink.ended(local, EndReason.FAILED)
         pendingOutgoing?.let { sink.ended(it, EndReason.FAILED) }
         locals.clear(); cids.clear(); lastState.clear(); info.clear(); remote.clear(); connectedAt.clear()
@@ -263,6 +306,7 @@ class CallTracker(private val link: LinkPort, private val sink: CallSink, privat
 
     /** An outgoing call this phone started: the Android phone is asked to dial. */
     fun performStart(local: String, number: String, sub: Int?) {
+        finishEndTone(report = true)   // redialing during the busy tone
         pendingOutgoing = local
         pendingNumber = number
         pendingSub = sub
@@ -278,6 +322,8 @@ class CallTracker(private val link: LinkPort, private val sink: CallSink, privat
     }
 
     fun performEnd(local: String) {
+        // Ended during its busy tone: the Android phone's call is already over; the local call is ending now.
+        if (toneCall?.local == local) { finishEndTone(report = false); return }
         sink.log("end from this phone (${cids[local] ?: "no call id yet"})")
         sink.ringback(false)
         val cid = cids[local]

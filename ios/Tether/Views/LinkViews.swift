@@ -130,6 +130,10 @@ struct LinkView: View {
                             Text("Call audio stops if the Android phone leaves Wi-Fi. To keep it, turn on USB debugging there: Tether › Call audio › Turn on USB debugging.")
                                 .font(.footnote).foregroundStyle(.secondary)
                         }
+                        if s.helper.stopsOnUsbUnplug {
+                            Text("Unplugging the USB cable stops call audio: the Android phone restarts USB debugging and, without Wi-Fi, the audio helper does not come back. After unplugging, turn on Wi-Fi there for a few seconds.")
+                                .font(.footnote).foregroundStyle(.orange)
+                        }
                         if let m = s.helper.method { LabeledContent("Inject method", value: m) }
                         if let m = s.helper.capture { LabeledContent("Capture method", value: m) }
                         if let q = s.helper.silent {

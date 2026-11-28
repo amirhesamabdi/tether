@@ -14,7 +14,9 @@ what you do on the Android phone shows up on the iPhone, and the other way round
   call screen, in Control Center or on the car's screen are followed too, and a car can answer and end calls (they
   are CallKit calls, so CarPlay shows them without anything extra).
 - **Dialling**: Keypad, Recents or a contact. With two SIMs you choose the SIM; the phone's own default is used
-  otherwise. While the call connects you hear a ringback tone from the iPhone.
+  otherwise. While the call connects you hear a ringback tone from the iPhone. When the number is busy or the network
+  fails the call, the iPhone plays the busy or failure tone for 3 seconds and shows **Busy** or **Call failed** (with an
+  Android phone app newer than 1.2.6); hang up to stop it at once.
 - **Call waiting**: a second call rings as usual; answering it holds the first.
 - **Move the call here**: a call answered on the Android phone itself shows on the iPhone with *Move here*, which
   moves its audio to the iPhone.

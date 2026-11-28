@@ -13,6 +13,8 @@ import android.view.WindowManager
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import app.tether.client.R
+import app.tether.client.calls.CallAudioNotice
+import app.tether.client.calls.CallEndTone
 import app.tether.client.calls.LocalCall
 import app.tether.client.calls.MicPolicy
 
@@ -88,9 +90,23 @@ class CallActivity : Activity() {
             "ringing" -> getString(R.string.incoming_call)
             "dialing", "connecting" -> getString(R.string.call_dialing)
             "holding" -> getString(R.string.call_on_hold)
+            "ended" -> getString(if (c.endTone == CallEndTone.BUSY) R.string.call_busy else R.string.err_call_failed)
             else -> c.connectedAt?.let { val s = ((System.currentTimeMillis() - it) / 1000).coerceAtLeast(0); "%d:%02d".format(s / 60, s % 60) } ?: getString(R.string.call_active)
         }
         root.addView(label(listOfNotNull(stateText, sim).joinToString(" · "), R.color.muted, 16f).apply { gravity = Gravity.CENTER; textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, dp(8), 0, dp(32)) })
+        val helper = app.state.status?.optJSONObject("helper")
+        if (CallAudioNotice.forCall(c.state, helper?.optString("state"), helper?.optString("why"), helper?.optString("noCallAudio")) == CallAudioNotice.NEEDS_WIFI)
+            // The Android phone's audio helper is down and cannot start without Wi-Fi: the call has no audio at all.
+            root.addView(label(getString(R.string.call_no_audio_wifi), R.color.warn, 14f).apply { gravity = Gravity.CENTER; textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, dp(16)) })
+        if (c.endTone != null) {
+            // Busy / failed: its tone plays for a few seconds; End stops it at once.
+            root.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
+            root.addView(actionRow(
+                roundAction(R.drawable.ic_call_end, getString(R.string.end_call), R.color.bad, sizeDp = 72) { app.telecom.connection(c.local)?.onDisconnect() ?: app.calls.performEnd(c.local) },
+            ).apply { setPadding(0, dp(16), 0, 0) })
+            updateProximity(null)
+            return
+        }
         app.micWarning?.let { root.addView(label(getString(micText(it)), R.color.warn, 14f).apply { gravity = Gravity.CENTER; textAlignment = View.TEXT_ALIGNMENT_CENTER; setPadding(0, 0, 0, dp(16)) }) }
         val others = app.calls.calls.filter { it.local != c.local }
         // Another call (waiting or on hold): tap to show it here.

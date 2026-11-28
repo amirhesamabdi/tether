@@ -14,6 +14,7 @@
     <string name="audio_unavailable">Call audio is not available on this Android phone: it needs Android 11 or later. Calls are still answered, placed and ended here, but you hear and speak on the Android phone.</string>
     <string name="audio_blocked">This Android phone\'s software gives Tether no call audio (the call sounds like silence to it). Calls are still answered, placed and ended here, but you hear and speak on the Android phone. A system update, or a self-test during a call that hears the call, turns call audio back on. If calls on the phone itself have no sound either, restart the phone once.</string>
     <string name="helper_why_wifi">No call audio right now: the Android phone is not on Wi-Fi, so it cannot start its audio helper (Wireless debugging needs Wi-Fi). Connect it to Wi-Fi, or set up TCP debugging on it (Setup).</string>
+    <string name="helper_stops_on_unplug">Unplugging the USB cable stops call audio: the Android phone restarts USB debugging and, without Wi-Fi, the audio helper does not come back. After unplugging, turn on Wi-Fi there for a few seconds.</string>
     <string name="helper_needs_wifi">Call audio stops if the Android phone leaves Wi-Fi. To keep it, turn on USB debugging there: Tether › Call audio › Turn on USB debugging.</string>
     <string name="block">Block</string>
     <string name="bt_tethering">Bluetooth tethering</string>
@@ -28,6 +29,8 @@
     <string name="call_missed">Missed</string>
     <string name="call_number">Call %1$s</string>
     <string name="call_on_hold">On hold</string>
+    <string name="call_busy">Busy</string>
+    <string name="call_no_audio_wifi">No call audio: turn on Wi-Fi on the Android phone for a moment.</string>
     <string name="call_other">Call</string>
     <string name="call_out">Outgoing</string>
     <string name="call_ringing">Ringing</string>
