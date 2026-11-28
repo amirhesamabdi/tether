@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.2.7 — 2026-11-28
+
 ### Call audio and the link
 
 - Link: the Android phone remembers what it asked of a Bluetooth LE connection for as long as that connection is up,
