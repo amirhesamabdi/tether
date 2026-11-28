@@ -112,3 +112,10 @@ What the owner's own calls showed (link logs), and what the helper does with it 
 
 On 2026-11-25 the test line's capture showed a 55 ms standing backlog and a 15.77 kHz capture clock with both the 1.1.0
 build and 1.2.0 (16/92 ms and 16.0 kHz on 11-23): the phone's state, not the build.
+
+## Real calls (2026-11-28, Tether 1.2.6, Wi-Fi off, USB debugging on)
+
+| Finding | In builds after 1.2.6 |
+| --- | --- |
+| Unplugging the USB cable restarted adbd (a new adbd process at the unplug, `USB_STATE` connected false a second later) even with USB debugging on, and init took the audio helper with it; with Wi-Fi off it could not start again, and three real calls had no audio at all. Wi-Fi on for about 3 s started it, and it then kept running with Wi-Fi off. Plugging the cable back in did not restart adbd | The Call audio card warns while the cable is in and the phone is off Wi-Fi (`helper.stopsOnUnplug`), the link log records the unplug and the helper stopping, a call without the helper posts "No call audio: turn on Wi-Fi on this phone for a moment" (`helper.noCallAudio`), and Wi-Fi coming back starts the helper at once |
+| The iPhone restarted its session on an open LE connection; the new session repeated "balanced" 0.6 s after the same request had been answered, the repeat was never answered, a call's "high" 10 s later never applied, and the link dropped 40.0 s after the repeat (also 11:21:48 → 11:22:28) | One priority pacer per LE connection, kept across sessions; no "balanced" as a connection's first request |
