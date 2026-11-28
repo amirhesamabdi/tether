@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.2.9 — 2026-11-28
+
 ### Call audio and the link
 
 - Link: the Android phone never has two Bluetooth speed requests in flight. A request now waits for the previous
