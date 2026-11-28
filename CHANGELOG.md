@@ -7,6 +7,9 @@
 - Android phone, call-audio diagnostics: an error without a message (as on a Honor 200 with Android 16, where every
   self-test row said only `NullPointerException: null`) now names the two code places it came from, in the self-test,
   the link log and problem reports (#37).
+- Android phone, call-audio helper: Android's "current application" is no longer missing in the helper's process.
+  Some vendors' audio code asks for it; on a Honor 200 (MagicOS 10) every call capture failed with a bare
+  `NullPointerException` and the iPhone heard nothing (#37; unconfirmed on that phone).
 
 ## 1.2.9 — 2026-11-28
 
