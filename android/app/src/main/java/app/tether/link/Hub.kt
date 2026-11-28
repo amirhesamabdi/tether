@@ -233,7 +233,8 @@ class Hub(private val app: TetherApp) : ConnectionListener {
         // A client paired just now has no kind yet (iPhone or Android phone): it says so in its first sync.
         if (newlyPaired) kindPending.add(c) else holdLeFor(c)
         ext(c)
-        LinkService.running?.peripheral?.tune(c.transport.address, high = audio.target === c || audio.owner === c)
+        // The reconnected owner of a call keeps its fast link from the start (no "balanced" before audio control re-picks it).
+        LinkService.running?.peripheral?.tune(c.transport.address, high = audio.target === c || audio.announcedOwner() === c)
         audioCtl.execute { audio.reconcile() }
         bg { pushStatus() }
     }
@@ -764,7 +765,7 @@ class Hub(private val app: TetherApp) : ConnectionListener {
      */
     fun callJson(info: CallInfo, c: Connection): JSONObject {
         val o = info.json()
-        val t = audio.owner
+        val t = audio.announcedOwner()
         if (AudioOwner.elsewhere(info.state, t, c, helper.audioBlocked()))
             o.put("elsewhere", true).put("where", AudioOwner.where(t?.takeIf { it !== c }?.name, app.keys.deviceName()))
         return o
@@ -1153,9 +1154,18 @@ class Hub(private val app: TetherApp) : ConnectionListener {
             try { updateOwnerLocked(); return true } finally { lock.unlock() }
         }
 
+        /** The clients a call's audio may go to now (a real call: every client, whatever `only` says). */
+        private fun liveClients() = targets(real = CallRegistry.list().any { it.state != "ended" && !CallRegistry.isTestCall(app, it.cid) })
+
+        /**
+         * The owner to name in call announcements and link tuning ([AudioOwner.announced]): needs no lock, and is the
+         * reconnected client from its first `call.list` on, before audio control picked it again.
+         */
+        fun announcedOwner(): Connection? = AudioOwner.announced(owner, liveClients(), ::keyOf, claimedKey)
+
         private fun updateOwnerLocked(): Boolean {
             val before = owner
-            val live = targets(real = CallRegistry.list().any { it.state != "ended" && !CallRegistry.isTestCall(app, it.cid) })
+            val live = liveClients()
             if (owner?.let { it !in live } == true) owner = null
             val calls = CallRegistry.list()
             val now = SystemClock.elapsedRealtime()

@@ -18,6 +18,17 @@ object AudioOwner {
     fun <C> pick(live: List<C>, key: (C) -> String, claimedKey: String?): C? =
         claimedKey?.let { k -> live.firstOrNull { key(it) == k } }
 
+    /**
+     * The owner a call announcement names (`elsewhere`, the link's priority), without waiting for audio control: the
+     * owner while its link is live, else the live client whose key claimed during the current calls. A client that
+     * reconnects after its old link already closed is not the owner until audio control picks it again (up to a second
+     * later, longer while the audio lock is busy); announcing [owner] alone told it its own call was `elsewhere` in the
+     * first `call.list` / `call.state` after the reconnect, and the iPhone tore its call audio down and set it up again
+     * (Galaxy A54 + iPhone 17, 2026-11-28).
+     */
+    fun <C> announced(owner: C?, live: List<C>, key: (C) -> String, claimedKey: String?): C? =
+        owner?.takeIf { o -> live.any { it === o } } ?: pick(live, key, claimedKey)
+
     /** The claim is forgotten once no call is left (ended calls do not count). */
     fun keepClaim(callStates: List<String>): Boolean = callStates.any { it != "ended" }
 

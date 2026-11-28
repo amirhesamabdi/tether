@@ -10,6 +10,9 @@
   request behind it never applied, and the link dropped 40 s later in the middle of the call (Galaxy A54). A fresh
   connection is no longer asked for "balanced" at all, and the link log says when a request goes out while an earlier
   one is still unanswered.
+- Android phone: an iPhone or Android client that reconnects during a call it answered or dialed is named as the
+  call's owner from the first call state it gets. It used to be told for a moment that its own call was "on" the
+  phone, so the iPhone stopped and restarted the call's audio right after every reconnect.
 
 ## 1.2.6 — 2026-11-28
 

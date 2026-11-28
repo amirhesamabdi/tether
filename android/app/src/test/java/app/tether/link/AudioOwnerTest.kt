@@ -41,6 +41,23 @@ class AudioOwnerTest {
         assertNull("not while it is away", AudioOwner.pick(listOf(second), { it.key }, claimedKey = "aa"))
     }
 
+    @Test fun aReconnectedOwnerIsNeverToldItsCallIsElsewhere() {
+        // Galaxy A54 + iPhone 17, 2026-11-28 13:11:42: the iPhone's old link had closed 6 s before (owner dropped, claim
+        // kept); its first call.list after the new session said "active elsewhere" because audio control had not
+        // re-picked it yet, and the iPhone tore its call audio down and set it up again.
+        val again = Client("aa", "iPhone")
+        val live = listOf(again, second)
+        val owner = AudioOwner.announced(owner = null, live = live, key = { it.key }, claimedKey = "aa")
+        assertSame(again, owner)
+        assertFalse(AudioOwner.elsewhere("active", owner, again, blocked = false))
+        assertTrue("the other client still sees it elsewhere", AudioOwner.elsewhere("active", owner, second, blocked = false))
+        // The old link is still the owner (closing, not yet removed): the new one is named.
+        assertSame(again, AudioOwner.announced(owner = iphone, live = live, key = { it.key }, claimedKey = "aa"))
+        // A live owner is kept as it is; a call nobody claimed stays on the phone.
+        assertSame(second, AudioOwner.announced(owner = second, live = live, key = { it.key }, claimedKey = "bb"))
+        assertNull(AudioOwner.announced(owner = null, live = live, key = { it.key }, claimedKey = null))
+    }
+
     @Test fun theClaimLastsWhileACallIsLeft() {
         assertTrue(AudioOwner.keepClaim(listOf("active")))
         assertTrue(AudioOwner.keepClaim(listOf("ended", "holding")))
