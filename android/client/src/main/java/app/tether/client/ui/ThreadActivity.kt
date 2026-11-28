@@ -249,7 +249,7 @@ class ThreadActivity : Activity() {
         // The corner on the sender's side is tighter where the next bubble of the run follows (as phones draw runs).
         val tail = if (item.showTime) r else s
         val radii = if (mine) floatArrayOf(r, r, r, r, tail, tail, r, r) else floatArrayOf(r, r, r, r, r, r, tail, tail)
-        val body = label(m.body, if (mine) R.color.background else R.color.text, 16f).apply {
+        val body = label(m.body, BubbleColors.text(mine), 16f).apply {
             setPadding(dp(12), dp(8), dp(12), dp(8))
             background = GradientDrawable().apply { cornerRadii = radii; setColor(col(if (mine) R.color.accent else R.color.surface)) }
             // Links, e-mail addresses and phone numbers, except "numbers" that are dates, versions or amounts.
@@ -259,6 +259,9 @@ class ThreadActivity : Activity() {
                     if (link.url.startsWith("tel:") && NumberShape.isNotAPhoneNumber(sp.substring(sp.getSpanStart(link), sp.getSpanEnd(link)))) sp.removeSpan(link)
                 }
             }
+            // Links in the bubble's own text colour on our teal bubbles: in the accent colour they were invisible there, so a
+            // text that was only a number showed as an empty bubble (issue #34). The iPhone tints them the same way.
+            setLinkTextColor(col(BubbleColors.link(mine)))
             // Links open with a tap, except while selecting (a tap then selects the text).
             if (!picking) movementMethod = android.text.method.LinkMovementMethod.getInstance()
             setOnLongClickListener { performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS); onLong(m); true }
@@ -413,4 +416,11 @@ class ThreadActivity : Activity() {
     }
 
     companion object { private const val PIN_TOP = 0; private const val HEADING_TOP = 18; const val EXTRA_ADDRESS = "address"; const val EXTRA_THREAD = "thread"; const val EXTRA_FOCUS = "focus" }
+}
+
+/** Colours of a text bubble: ours on the accent colour, theirs on a card (the iPhone's MessagesViews does the same). */
+internal object BubbleColors {
+    fun text(mine: Boolean) = if (mine) R.color.background else R.color.text
+    /** Links take the text colour on our accent bubbles (the accent there would hide them), the accent on theirs. */
+    fun link(mine: Boolean) = if (mine) text(true) else R.color.accent
 }

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### iPhone and Android client
+
+- Android client, Messages: links, phone numbers and codes in your own (teal) bubbles are drawn in the bubble's text
+  colour, as on the iPhone. In the accent colour they were invisible there, and a text that was only a number looked
+  like an empty bubble (#34).
+
 ## 1.2.8 — 2026-11-28
 
 ### Call audio and the link
