@@ -61,6 +61,11 @@ card in the Android app says which case you are in, and so does Link › Call au
    Galaxy A73 5G with Android 16, the phone's software does not give Tether the call: from 1.2.2 Tether notices this
    in the first seconds of a call, gives the call back to the phone (earpiece and microphone on) and says
    "blocked" in Link › Call audio, until a system update or a self-test during a call hears the call.
+   The same happens in builds after 1.2.6 when the phone refuses every capture of the call outright (`call audio
+   path: capture NONE` with `startRecording failed` for voice_downlink, voice_call and telephony_rx, as on a Realme X
+   with Android 11, #26): about 3 s into the active call Tether gives it back to the phone, its earpiece, volume and
+   microphone as before, instead of a call nobody hears. A new Tether version, choosing the phone's mic setting again
+   or a self-test that hears the call tries again.
    A call you answer or dial on the Android phone itself always stays on it.
    **Samsung phones with a Qualcomm chip (Galaxy A71, A73, Fold and others) on Tether 1.2.3 or older:** if calls on
    the phone itself also lost their sound, Tether's Samsung call keys or redirect mode had left the phone's voice

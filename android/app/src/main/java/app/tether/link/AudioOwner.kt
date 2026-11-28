@@ -9,7 +9,8 @@ package app.tether.link
  * muted. Before 1.2.2 such a call went to the client used last, else the iPhone, and the phone's own earpiece and
  * microphone were silenced: with the iPhone linked, a call taken on the phone had no audio there (issue #13).
  *
- * A phone whose software gives Tether no call audio (the downlink capture reads only zeros in a real call) is
+ * A phone whose software gives Tether no call audio (the downlink capture reads only zeros in a real call, or every
+ * capture method is refused in the active call: AudioRestart.captureNone, issue #26) is
  * remembered by its build fingerprint and Tether's version: its calls are not bridged until the firmware or Tether
  * changes, or a self-test finds call audio again. Clients are told `helper.audio` "blocked".
  */

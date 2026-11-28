@@ -220,4 +220,31 @@ class CallPathTest {
         assertFalse("the self-test chose an older method: never overridden", AudioRestart.wanted(34, fell, "telephony_tx", 0, 5000, true))
         assertFalse("no INFO of this call's start yet", AudioRestart.wanted(34, null, "auto", 0, 5000, true))
     }
+
+    @Test fun aCallWhoseDownlinkCannotBeCapturedGoesBackToThePhone() {
+        // Issue #26, Realme X (RMX1901, Qualcomm, Android 11), 2026-11-28: every capture refused in every call, the call
+        // bridged anyway with the earpiece muted ("voice-call volume 0 of 1–7, muted"): nobody heard anything anywhere.
+        val failed = "IllegalStateException: startRecording failed"
+        val none = JSONObject().put("capture", JSONObject.NULL).put("inject", "telephony_tx")
+            .put("errors", JSONArray(listOf("capture:voice_downlink $failed", "capture:voice_call $failed", "capture:telephony_rx $failed")))
+        val restart = AudioRestart.wanted(30, none, "auto", 0, 5000, true)
+        assertFalse("Android 11: no interception API to restart for", restart)
+        assertTrue(AudioRestart.captureNone(30, none, testLine = false, callActive = true, msSinceInfo = 5000, restartWanted = restart))
+        assertEquals("voice_downlink $failed; voice_call $failed; telephony_rx $failed", CallAudioReport.captureErrors(none))
+        assertFalse("not before the restart window is over", AudioRestart.captureNone(30, none, false, true, 2999, false))
+        assertFalse("only once the call is active", AudioRestart.captureNone(30, none, false, false, 5000, false))
+        assertFalse("never on the test line", AudioRestart.captureNone(30, none, true, true, 5000, false))
+        assertFalse("before Android 11 nothing is bridged anyway", AudioRestart.captureNone(29, none, false, true, 5000, false))
+        assertFalse("a capture opened", AudioRestart.captureNone(30, info("voice_downlink", "telephony_tx"), false, true, 5000, false))
+        assertFalse("no INFO of this start yet (a restart is under way)", AudioRestart.captureNone(34, null, false, true, 5000, false))
+        // Android 13+: the interception API refused in the call's mode gets its one restart first; only a restart that
+        // opens no capture either gives the call back.
+        val refusedAll = JSONObject().put("capture", JSONObject.NULL).put("inject", "telephony_tx")
+            .put("errors", JSONArray(listOf("capture:intercept $refused", "capture:voice_downlink $failed")))
+        val first = AudioRestart.wanted(34, refusedAll, "auto", 0, 5000, true)
+        assertTrue(first)
+        assertFalse("the restart comes first", AudioRestart.captureNone(34, refusedAll, false, true, 5000, first))
+        val again = AudioRestart.wanted(34, refusedAll, "auto", 1, 5000, true)
+        assertTrue("after the restart, still none", AudioRestart.captureNone(34, refusedAll, false, true, 5000, again))
+    }
 }

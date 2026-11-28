@@ -1084,13 +1084,22 @@ class Hub(private val app: TetherApp) : ConnectionListener {
             // This phone gives Tether no call audio (only zeros in a real call; PathWatch never says so on the test
             // line): give the call back to the phone (its own earpiece and microphone on again) instead of leaving
             // both ends silent, and do not bridge this firmware's calls again (issue #13).
-            if (running && p.optString("event") == "down-zeros" && !onlyTestLine()) {
-                helper.rememberAudioBlocked()
-                LinkLog.add("call audio: this phone gives Tether no call audio: the call goes back to the Android phone " +
-                    "(its earpiece and microphone), and calls are not bridged on this phone until its software changes " +
-                    "or a self-test during a call hears call audio. If calls on the phone itself have no sound either, restart the phone once")
-                audioCtl.execute { reconcile(); broadcastCalls(); pushStatus() }
-            }
+            if (running && p.optString("event") == "down-zeros" && !onlyTestLine())
+                giveBackToPhone("this phone gives Tether no call audio")
+        }
+
+        /**
+         * This phone gives Tether no call audio ([why]): remember it per firmware and Tether version ("blocked"), and give
+         * the call back to the phone at once: the next reconcile stops the bridge, which puts the phone's earpiece, volume
+         * and microphone back; clients get `elsewhere` and status `helper.audio` "blocked".
+         */
+        private fun giveBackToPhone(why: String) {
+            if (helper.audioBlocked()) return
+            helper.rememberAudioBlocked()
+            LinkLog.add("call audio: $why: the call goes back to the Android phone " +
+                "(its earpiece and microphone), and calls are not bridged on this phone until its software or Tether changes, " +
+                "the phone's mic setting is chosen again, or a self-test during a call hears call audio. If calls on the phone itself have no sound either, restart the phone once")
+            audioCtl.execute { reconcile(); broadcastCalls(); pushStatus() }
         }
 
         /** Call-audio diagnostics the helper took by itself: the last few are kept for a problem report (DiagStore). */
@@ -1343,7 +1352,14 @@ class Hub(private val app: TetherApp) : ConnectionListener {
         private fun checkMethods() {
             val info = helper.lastInfo ?: return
             val since = if (infoAt > 0) SystemClock.elapsedRealtime() - infoAt else 0
-            if (!AudioRestart.wanted(android.os.Build.VERSION.SDK_INT, info, startChoice, restarts, since, CallRegistry.hasActiveCall())) return
+            val active = CallRegistry.hasActiveCall()
+            if (!AudioRestart.wanted(android.os.Build.VERSION.SDK_INT, info, startChoice, restarts, since, active)) {
+                // No capture at all and no restart coming: the client would hear nothing and the phone's earpiece is muted.
+                if (AudioRestart.captureNone(android.os.Build.VERSION.SDK_INT, info, onlyTestLine(), active, since, restartWanted = false))
+                    giveBackToPhone("this phone does not let Tether capture the call's audio (every capture method failed: " +
+                        CallAudioReport.captureErrors(info) + ")")
+                return
+            }
             restarts++
             LinkLog.add("call audio: the phone refused the interception API in the call (capture ${info.optString("capture")}, inject ${info.optString("inject")}): restarting the call's audio once")
             startHelper(codec?.rate ?: 16000, startChoice)

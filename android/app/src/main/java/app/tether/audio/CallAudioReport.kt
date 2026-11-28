@@ -114,6 +114,13 @@ object CallAudioReport {
         else null
     }
 
+    /** The start INFO's capture errors in one line ("voice_downlink IllegalStateException: startRecording failed; …"). */
+    fun captureErrors(info: JSONObject): String {
+        val e = info.optJSONArray("errors") ?: return "no errors reported"
+        return (0 until e.length()).map { e.optString(it) }.filter { it.startsWith("capture:") }
+            .joinToString("; ") { it.removePrefix("capture:") }.ifEmpty { "no errors reported" }
+    }
+
     /**
      * From the helper's call figures: the far end's audio the phone captured ([downFrames] sent to the client) held no
      * speech at all, so a "no sound" call was silent before it reached the client (a silent far end, or a phone that

@@ -28,6 +28,12 @@
 - Android phone, call figures: the link log's call line (and problem reports) now say how many frames of the far
   end's audio held speech (`down speech N frames`), and the link log says so when a call's captured audio had none,
   so a "no sound" call shows whether the other side's voice reached the phone at all.
+- Android phone, call audio: a phone that refuses every way to capture a call (`capture NONE`, `startRecording failed`
+  for voice_downlink, voice_call and telephony_rx, as on a Realme X with Android 11) no longer keeps the call bridged
+  with its own earpiece muted, which left the call silent everywhere. About 3 s into the active call (after the
+  existing restart, where one applies) the call goes back to the phone with its earpiece, volume and microphone as
+  before, the link log says why, and calls on that phone are not bridged ("blocked") until a system update, a new
+  Tether version, choosing the phone's mic setting again, or a self-test that hears the call (#26).
 
 ## 1.2.6 — 2026-11-28
 
