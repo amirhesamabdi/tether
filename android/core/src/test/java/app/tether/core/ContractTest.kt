@@ -176,7 +176,7 @@ class ContractTest {
         assertFalse("an ended call without a tone (older builds, the test line)", variants("call.state").getValue("ended").has("tone"))
         // Never on a call that is still going, whatever the caller passes.
         assertFalse(CallInfo("c1", "+10000000007", null, "active", "out", null, null, null, false, "busy").json().has("tone"))
-        // The constructor without a tone (before 1.2.7) still builds the same body.
+        // The constructor without a tone (1.2.6 and older) still builds the same body.
         assertSame("old constructor", CallInfo("c3", "+10000000009", null, "ended", "out", null, null, "remote", false).json(),
             variants("call.state").getValue("ended").let { JSONObject(it.toString()) })
     }

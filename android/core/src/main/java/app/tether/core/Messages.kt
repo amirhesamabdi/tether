@@ -113,7 +113,7 @@ data class CallEntry(val id: Long, val num: String, val name: String?, val date:
  */
 data class CallInfo(val cid: String, val num: String, val name: String?, val state: String, val dir: String,
                     val sub: Int?, val since: Long?, val cause: String?, val hold: Boolean, val tone: String?) {
-    /** Without [tone] (the constructor before 1.2.7, kept for code built against it). */
+    /** Without [tone] (the constructor of 1.2.6 and older, kept for code built against it). */
     constructor(cid: String, num: String, name: String?, state: String, dir: String, sub: Int?, since: Long?, cause: String?, hold: Boolean) :
         this(cid, num, name, state, dir, sub, since, cause, hold, null)
 
