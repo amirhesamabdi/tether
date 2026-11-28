@@ -12,15 +12,16 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import app.tether.client.R
 
-/** Colors and dimensions for the Link reference, scoped to this tab. */
+/** Views and dimensions for the Link tab, in the app's palette (res/values/colors.xml). */
 internal class LinkViews(private val context: Context) {
-    val background = Color.rgb(9, 10, 11)
-    private val surface = Color.rgb(25, 26, 28)
-    private val secondary = Color.rgb(39, 40, 41)
-    private val divider = Color.rgb(48, 50, 54)
-    val accent = Color.rgb(0, 218, 215)
-    private val muted = Color.rgb(196, 199, 201)
-    private val connected = Color.rgb(21, 214, 79)
+    val background = context.getColor(R.color.background)
+    private val surface = context.getColor(R.color.surface)
+    private val secondary = context.getColor(R.color.background)   // icon tiles: the page colour on a card
+    private val divider = (context.getColor(R.color.muted) and 0x00FFFFFF) or (0x40 shl 24)   // muted at 25 %
+    val accent = context.getColor(R.color.accent)
+    private val muted = context.getColor(R.color.muted)
+    private val connected = context.getColor(R.color.ok)
+    private val textColor = context.getColor(R.color.text)
     private val radius = 23
     private val gap = 15
 
@@ -29,7 +30,7 @@ internal class LinkViews(private val context: Context) {
         cornerRadius = context.dp(radius).toFloat()
     }
 
-    private fun text(value: CharSequence, size: Float, color: Int = Color.WHITE, bold: Boolean = false) =
+    private fun text(value: CharSequence, size: Float, color: Int = textColor, bold: Boolean = false) =
         TextView(context).apply {
             text = value
             textSize = size
@@ -37,14 +38,14 @@ internal class LinkViews(private val context: Context) {
             if (bold) setTypeface(typeface, Typeface.BOLD)
         }
 
-    private fun icon(res: Int, size: Int, color: Int = Color.WHITE) = ImageView(context).apply {
+    private fun icon(res: Int, size: Int, color: Int = textColor) = ImageView(context).apply {
         setImageResource(res)
         setColorFilter(color)
         layoutParams = LinearLayout.LayoutParams(context.dp(size), context.dp(size))
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
 
-    private fun tile(res: Int, size: Int, glyph: Int, color: Int, tint: Int = Color.WHITE) =
+    private fun tile(res: Int, size: Int, glyph: Int, color: Int, tint: Int = textColor) =
         FrameLayout(context).apply {
             background = shape(color, size / 2)
             layoutParams = LinearLayout.LayoutParams(context.dp(size), context.dp(size))
