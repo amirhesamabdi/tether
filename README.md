@@ -211,6 +211,8 @@ what you see (open an issue with your phone model, Android version and the Link 
 | Samsung Galaxy A52s 5G (Qualcomm) + iPhone 15 (user report, #25) | Two-way call audio works; the phone's own earpiece and microphone stay on (as on the A73: lowest call volume, **Muted** against the echo) |
 | Redmi Note 10 5G (MediaTek) + iPhone 16 (user report, #14) | Calls and the far end's voice on the iPhone work; with 1.2.5 the iPhone's voice did not reach the call (no inject method opened; 1.1.0 worked). Now every inject method is tried in turn: unconfirmed |
 | Poco X3 Pro (Qualcomm, custom Android 16) + iPhone 14 Pro Max (user report, #14) | Calls and the far end's voice on the iPhone work; the far end does not hear the iPhone (`telephony_tx` opens and is routed to the call but is taken at ~14.8 kHz). Open: needs a problem report from the Android phone |
+| Samsung Galaxy A14 4G (Exynos 850, Android 15) + Galaxy S26 Ultra as client (user report, #34) | Calls, texts and the far end's voice on the client work; the client's voice cannot reach the call: this firmware has no call-audio interception API and no telephony output (`PSTN Call audio not accessible`), so the A14's own microphone stays on |
+| Realme X (Qualcomm, Android 11) + iPhone 17 Pro Max (user report, #26) | Calls and texts work; no call audio: the phone refuses every call capture and does not take the injected voice. Since 1.2.7 such calls stay on the phone |
 | Android 11-12 | Everything, with call audio on a best-effort path (voice-call capture); untested |
 | Android 10 | Everything except call audio; the helper needs the TCP adb path; untested |
 | Android 8-9 | Everything except call audio; link over GATT only; the helper only via TCP adb; tested in the emulator, untested on devices |
