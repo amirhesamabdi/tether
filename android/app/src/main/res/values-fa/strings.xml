@@ -140,4 +140,8 @@
     <string name="report_failed">گزارش ساخته نشد: %1$s</string>
     <string name="report_copied_short">کپی شد، برای کلیپ‌بورد به %1$d کیلوبایت کوتاه شد. «اشتراک‌گذاری» کل فایل را می‌فرستد.</string>
     <string name="action_close">بستن</string>
+    <string name="dialer_role_not_granted">اندروید نقش برنامهٔ پیش‌فرض تلفن را اعطا نکرد. در تنظیمات، برنامه‌های پیش‌فرض › برنامهٔ تلفن را بررسی کنید.</string>
+    <string name="dialer_role_unconfirmed">اندروید موفقیت را گزارش کرد، اما تتر اکنون برنامهٔ پیش‌فرض تلفن نیست.</string>
+    <string name="dialer_role_unavailable">نقش برنامهٔ پیش‌فرض تلفن در این دستگاه یا نمایه در دسترس نیست.</string>
+    <string name="dialer_role_request_failed">اندروید نتوانست درخواست برنامهٔ پیش‌فرض تلفن را باز کند. در تنظیمات، برنامه‌های پیش‌فرض › برنامهٔ تلفن را بررسی کنید.</string>
 </resources>

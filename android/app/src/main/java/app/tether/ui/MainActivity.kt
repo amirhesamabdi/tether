@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.app.role.RoleManager
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -18,6 +19,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
+import android.util.Log
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -48,6 +50,7 @@ class MainActivity : Activity() {
     private lateinit var root: LinearLayout
     private val main = Handler(Looper.getMainLooper())
     private var qrUntil = 0L
+    private var dialerRequestMessage: Int? = null
     private var qrBitmap: Bitmap? = null
     private var qrLegacy = false
     private val listener: () -> Unit = { main.post { render() } }
@@ -93,6 +96,53 @@ class MainActivity : Activity() {
     }
 
     private fun missingPerms() = perms.filter { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }.toTypedArray()
+
+    @Suppress("DEPRECATION") // The platform role and legacy Telecom APIs both return an Activity result.
+    private fun requestDialerRole() {
+        try {
+            val intent = if (android.os.Build.VERSION.SDK_INT >= 29) {
+                val roles = getSystemService(RoleManager::class.java)
+                if (roles == null || !roles.isRoleAvailable(RoleManager.ROLE_DIALER)) {
+                    dialerRequestMessage = R.string.dialer_role_unavailable
+                    Log.w("Tether", "Default dialer role unavailable on SDK ${android.os.Build.VERSION.SDK_INT}")
+                    render()
+                    return
+                }
+                roles.createRequestRoleIntent(RoleManager.ROLE_DIALER)
+            } else {
+                Intent(android.telecom.TelecomManager.ACTION_CHANGE_DEFAULT_DIALER)
+                    .putExtra(android.telecom.TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)
+            }
+            dialerRequestMessage = null
+            startActivityForResult(intent, REQUEST_DIALER_ROLE)
+        } catch (e: ActivityNotFoundException) {
+            dialerRequestUnavailable(e)
+        } catch (e: SecurityException) {
+            dialerRequestUnavailable(e)
+        }
+    }
+
+    private fun dialerRequestUnavailable(e: RuntimeException) {
+        Log.w("Tether", "Could not open default dialer request", e)
+        dialerRequestMessage = R.string.dialer_role_request_failed
+        render()
+    }
+
+    @Deprecated("The platform role request uses the Activity result API.")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_DIALER_ROLE) return
+        val held = app.sims.isDialer()
+        Log.i("Tether", "Default dialer request: result=$resultCode held=$held sdk=${android.os.Build.VERSION.SDK_INT}")
+        dialerRequestMessage = dialerRoleMessage(held, resultCode)
+        render()
+        if (held) app.hub.refresh()
+    }
+
+    private companion object {
+        const val REQUEST_DIALER_ROLE = 2
+    }
+
 
     private fun render() {
         root.removeAllViews()
@@ -159,11 +209,10 @@ class MainActivity : Activity() {
             requestPermissions(missingPerms(), 1)
         })
         setup.addView(step(getString(R.string.step_n, 2, getString(R.string.step_dialer)), app.sims.isDialer(), getString(R.string.action_set),
-            help = getString(R.string.help_dialer)) {
-            startActivityForResult(if (android.os.Build.VERSION.SDK_INT >= 29) getSystemService(RoleManager::class.java).createRequestRoleIntent(RoleManager.ROLE_DIALER)
-                else Intent(android.telecom.TelecomManager.ACTION_CHANGE_DEFAULT_DIALER)
-                    .putExtra(android.telecom.TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName), 2)
-        })
+            help = getString(R.string.help_dialer)) { requestDialerRole() })
+        if (!app.sims.isDialer()) dialerRequestMessage?.let { message ->
+            setup.addView(label(getString(message), R.color.warn, 13f))
+        }
         val pm = getSystemService(PowerManager::class.java)
         setup.addView(step(getString(R.string.step_n, 3, getString(R.string.step_battery)), pm.isIgnoringBatteryOptimizations(packageName), getString(R.string.action_set),
             help = getString(R.string.help_battery)) {
@@ -409,4 +458,10 @@ class MainActivity : Activity() {
         if (!done) row.addView(button(action) { onClick() })
         return row
     }
+}
+
+internal fun dialerRoleMessage(held: Boolean, resultCode: Int): Int? = when {
+    held -> null
+    resultCode == Activity.RESULT_OK -> R.string.dialer_role_unconfirmed
+    else -> R.string.dialer_role_not_granted
 }

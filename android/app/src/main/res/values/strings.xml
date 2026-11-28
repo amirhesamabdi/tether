@@ -140,4 +140,8 @@
     <string name="report_failed">The report could not be made: %1$s</string>
     <string name="report_copied_short">Copied, shortened to %1$d KB for the clipboard. Share sends the whole file.</string>
     <string name="action_close">Close</string>
+    <string name="dialer_role_not_granted">Android did not grant the default phone role. Check Settings › Default apps › Phone app.</string>
+    <string name="dialer_role_unconfirmed">Android reported success, but Tether is not the current default phone app.</string>
+    <string name="dialer_role_unavailable">The default phone role is unavailable on this device or profile.</string>
+    <string name="dialer_role_request_failed">Android could not open the default phone app request. Check Settings › Default apps › Phone app.</string>
 </resources>
