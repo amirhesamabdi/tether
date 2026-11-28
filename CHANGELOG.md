@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.2.8 — 2026-11-28
+
 ### Call audio and the link
 
 - Android phone, Samsung phones with a Qualcomm chip (Galaxy A73, A52s): the earpiece is no longer "muted" through the
