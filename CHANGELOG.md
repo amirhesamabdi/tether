@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Call audio and the link
+
+- Android phone, call-audio diagnostics: an error without a message (as on a Honor 200 with Android 16, where every
+  self-test row said only `NullPointerException: null`) now names the two code places it came from, in the self-test,
+  the link log and problem reports (#37).
+
 ## 1.2.9 — 2026-11-28
 
 ### Call audio and the link

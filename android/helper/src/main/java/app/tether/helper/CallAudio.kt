@@ -455,7 +455,11 @@ object CallAudio {
 
     fun describe(t: Throwable): String {
         val root = generateSequence(t) { it.cause }.last()
-        return "${root.javaClass.simpleName}: ${root.message}"
+        // Without a message (a NullPointerException on a Honor 200, issue #37: every self-test row said only
+        // "NullPointerException: null") the place it came from is the only clue: its first two frames.
+        val at = if (root.message.isNullOrBlank()) root.stackTrace.take(2).joinToString(" < ", " at ") {
+            "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" }.takeIf { root.stackTrace.isNotEmpty() } ?: "" else ""
+        return "${root.javaClass.simpleName}: ${root.message}$at"
     }
 
     fun rms(b: ShortArray, n: Int): Double {
