@@ -107,6 +107,15 @@ class CallAudioReportTest {
         assertNull("an older helper", CallAudioReport.silentIphone(JSONObject().put("uplinkFrames", 900)))
     }
 
+    @Test fun aDownlinkWithoutSpeechIsFlagged() {
+        // 2026-11-28 13:11:58: "no sound", yet the phone sent 579 frames down and the iPhone played 577; nothing said
+        // whether they held the far end's voice.
+        assertTrue(CallAudioReport.silentFarEnd(JSONObject().put("downlinkSpeechFrames", 0), downFrames = 579)!!.contains("without any speech"))
+        assertNull(CallAudioReport.silentFarEnd(JSONObject().put("downlinkSpeechFrames", 140), downFrames = 579))
+        assertNull("a very short call", CallAudioReport.silentFarEnd(JSONObject().put("downlinkSpeechFrames", 0), downFrames = 100))
+        assertNull("an older helper", CallAudioReport.silentFarEnd(JSONObject(), downFrames = 579))
+    }
+
     private fun mic(state: String, verdict: String? = null, note: String = "") = JSONObject().put("setting", "auto").put("path", if (state == "on") "off" else "open")
         .put("mode", "call_redirect").put("state", state).put("note", note).apply { verdict?.let { put("verdict", it) } }
 

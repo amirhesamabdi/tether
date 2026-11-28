@@ -945,6 +945,7 @@ class Hub(private val app: TetherApp) : ConnectionListener {
                 val text = summary + (h?.let { "; helper " + helperSummary(it) } ?: "")
                 LinkLog.add("call audio: $text")
                 if (!testLine) h?.let { CallAudioReport.silentIphone(it) }?.let { LinkLog.add(it) }
+                if (!testLine) h?.let { CallAudioReport.silentFarEnd(it, downFrames) }?.let { LinkLog.add(it) }
                 if (c != null && c.isUp && c.transport.label != "memory")
                     c.sendUrgent(Message(T.AUDIO_STATS, JSONObject().put("summary", text).apply { h?.let { put("helper", it) } }))
             }, "audio-stats").apply { isDaemon = true }.start()
@@ -952,12 +953,12 @@ class Hub(private val app: TetherApp) : ConnectionListener {
 
         private fun helperSummary(h: JSONObject) = ("paths open after %d ms, capture backlog %d/%d ms, trimmed %d ms, inject queue %d/%d ms (%d underruns, %d in the first second), " +
             "uplink dropped %d of %d frames (%d held back before the call was active), ahead %d/%d ms (target %d), quiet cut %d ms added %d ms, late cut %d ms, speech sped up %d ms slowed %d ms" +
-            "; clocks capture %.1f inject %.1f Hz; uplink speech %d frames, check %s, phone mic %s").format(
+            "; clocks capture %.1f inject %.1f Hz; down speech %d frames, uplink speech %d frames, check %s, phone mic %s").format(
             h.optLong("openWaitMs", -1), h.optInt("captureBacklogMs"), h.optInt("captureBacklogMaxMs"), h.optInt("captureDroppedMs"),
             h.optInt("injectQueuedMs"), h.optInt("injectQueuedMaxMs"), h.optInt("injectUnderruns", -1), h.optInt("injectUnderrunsFirstSecond", -1),
             h.optInt("uplinkDroppedFrames"), h.optInt("uplinkFrames"), h.optInt("uplinkBeforeActiveFrames"), h.optInt("uplinkAheadMs"), h.optInt("uplinkAheadMaxMs"), h.optInt("uplinkTargetMs"),
             h.optInt("uplinkQuietCutMs"), h.optInt("uplinkQuietAddedMs"), h.optInt("uplinkLateCutMs"), h.optInt("uplinkSpedUpMs"), h.optInt("uplinkSlowedMs"),
-            h.optDouble("captureClockHz", -1.0), h.optDouble("injectClockHz", -1.0), h.optInt("uplinkSpeechFrames", -1),
+            h.optDouble("captureClockHz", -1.0), h.optDouble("injectClockHz", -1.0), h.optInt("downlinkSpeechFrames", -1), h.optInt("uplinkSpeechFrames", -1),
             h.optJSONObject("uplink")?.optString("state") ?: "–",
             (h.optJSONObject("mic")?.takeIf { it.has("mode") }?.let { m -> "${m.optString("mode")} ${m.optString("state")}" + (m.optString("verdict").takeIf { it.isNotEmpty() }?.let { " ($it)" } ?: "") +
                 (if (m.optString("state") != "on" && m.optString("state") != "waiting") (if (h.optJSONObject("uplink")?.optBoolean("micMuted") == true) ", then muted by the vendor key" else ", then open") else "") }

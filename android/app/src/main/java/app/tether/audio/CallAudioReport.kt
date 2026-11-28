@@ -113,4 +113,16 @@ object CallAudioReport {
             "call audio: the iPhone sent $frames frames without any speech: is its microphone allowed for Tether (iOS Settings › Privacy › Microphone) and the call not muted?"
         else null
     }
+
+    /**
+     * From the helper's call figures: the far end's audio the phone captured ([downFrames] sent to the client) held no
+     * speech at all, so a "no sound" call was silent before it reached the client (a silent far end, or a phone that
+     * gives Tether a quiet downlink). A call whose frames held speech points at the client's playout instead.
+     */
+    fun silentFarEnd(stats: JSONObject, downFrames: Long): String? {
+        val speech = stats.optInt("downlinkSpeechFrames", -1)
+        return if (downFrames >= 250 && speech == 0)
+            "call audio: the phone captured $downFrames frames of the call without any speech in them: the other side was silent, or this phone gives Tether only a quiet copy of the call's audio"
+        else null
+    }
 }

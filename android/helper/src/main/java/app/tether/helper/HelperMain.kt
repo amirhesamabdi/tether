@@ -498,6 +498,7 @@ object HelperMain {
                 .put("downReads", downReads).put("downSamples", downSamples).put("downNonZeroSamples", downNonZero).put("downReadsWithSound", downLiveReads)
                 .put("captureFrames", cap?.capturedFrames() ?: -1)
                 .put("upWrites", stats.upWrites).put("upPlayedFrames", inj?.playedFrames() ?: -1).put("upSpeechFrames", stats.speechFrames)
+                .put("downSpeechFrames", stats.downSpeechSamples / maxOf(1, rate / 50))
                 .put("injectUnderruns", inj?.underruns() ?: -1).put("openWaitMs", stats.openWaitMs)
                 .put("mic", runCatching { micJson() }.getOrDefault(JSONObject())).put("uplink", runCatching { uplinkJson() }.getOrDefault(JSONObject()))
         }
@@ -533,6 +534,8 @@ object HelperMain {
                         val nz = CallAudio.nonZero(buf, n)
                         downMeter.add(n, nz); watchMeter.add(n, nz)
                         downReads++; downSamples += n; downNonZero += nz; if (nz > 0) downLiveReads++
+                        // The far end's speech, as for the uplink: frames with nothing but zeros or a quiet line are none.
+                        if (nz > 0 && CallAudio.rms(buf, n) >= UplinkCheck.SPEECH_RMS) stats.downSpeechSamples += n
                         stats.captureClock.mark(System.nanoTime(), c.capturedFrames())
                         val b = c.backlogFrames()
                         if (b >= 0) {
@@ -921,13 +924,18 @@ object HelperMain {
             @Volatile var startUnderruns = -1
             /** Injected frames with speech in them: none in a whole call means the iPhone sent only silence. */
             @Volatile var speechFrames = 0
+            /**
+             * Captured downlink samples with speech in them (the far end's voice): none in a call the user calls silent
+             * means the far end's audio never reached the phone (2026-11-28: 579 frames sent, nothing said what was in them).
+             */
+            @Volatile var downSpeechSamples = 0L
             /** Uplink frames dropped because the call was not active yet (dialing, ringing, on hold). */
             @Volatile var upBeforeActive = 0
             /** Frames written to the inject track (the path watch's "is the uplink waiting"). */
             @Volatile var upWrites = 0
             /** How long the paths waited for the call's audio mode / the interception API, ms. */
             @Volatile var openWaitMs = -1L
-            fun reset() { speechFrames = 0; backlogSum = 0; backlogN = 0; backlogMax = 0; queuedSum = 0; queuedN = 0; queuedMax = 0; capDropped = 0; trims = 0; trimMisses = 0; captureClock.reset(); injectClock.reset(); startUnderruns = -1; upBeforeActive = 0; upWrites = 0; openWaitMs = -1 }
+            fun reset() { speechFrames = 0; downSpeechSamples = 0; backlogSum = 0; backlogN = 0; backlogMax = 0; queuedSum = 0; queuedN = 0; queuedMax = 0; capDropped = 0; trims = 0; trimMisses = 0; captureClock.reset(); injectClock.reset(); startUnderruns = -1; upBeforeActive = 0; upWrites = 0; openWaitMs = -1 }
             /** The call became active: the uplink's figures count from here (dialing is no measure of the call's clock). */
             fun activated() { injectClock.reset(); startUnderruns = -1; queuedSum = 0; queuedN = 0; queuedMax = 0 }
             fun trim(estimated: Int, dropped: Int) {
@@ -947,6 +955,7 @@ object HelperMain {
                     // an arriving frame and its target.
                     .put("uplinkFrames", up.arrived).put("uplinkDroppedFrames", up.overflowFrames).put("uplinkSpeechFrames", speechFrames)
                     .put("uplinkBeforeActiveFrames", upBeforeActive)
+                    .put("downlinkSpeechFrames", downSpeechSamples / maxOf(1, rate / 50))
                     .put("uplinkQuietCutMs", ms(up.quietCut)).put("uplinkQuietAddedMs", ms(up.inserted)).put("uplinkLateCutMs", ms(up.lateCut))
                     .put("uplinkSpedUpMs", ms(up.compressed)).put("uplinkSlowedMs", ms(up.stretched))
                     .put("uplinkAheadMs", ms(up.levelAvg)).put("uplinkAheadMaxMs", ms(up.levelMax)).put("uplinkTargetMs", ms(up.target)).put("uplinkSinkExtraMs", ms(up.sinkExtra))

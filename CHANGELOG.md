@@ -25,6 +25,9 @@
   a moment" (status `helper.noCallAudio`, for the iPhone's and the Android client's call screens). As soon as Wi-Fi
   is back the helper starts at once, without waiting for the back-off of the failed attempts, also without the
   secure-settings permission. Tether never turns Wi-Fi or USB debugging on by itself.
+- Android phone, call figures: the link log's call line (and problem reports) now say how many frames of the far
+  end's audio held speech (`down speech N frames`), and the link log says so when a call's captured audio had none,
+  so a "no sound" call shows whether the other side's voice reached the phone at all.
 
 ## 1.2.6 — 2026-11-28
 
