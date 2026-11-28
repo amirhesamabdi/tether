@@ -13,6 +13,10 @@
 - Android phone: an iPhone or Android client that reconnects during a call it answered or dialed is named as the
   call's owner from the first call state it gets. It used to be told for a moment that its own call was "on" the
   phone, so the iPhone stopped and restarted the call's audio right after every reconnect.
+- Android phone: an ended call now tells clients which tone Android's own phone app would play (protocol `tone`:
+  "busy", "congestion" for a call the network refused or failed, "ended"), so the iPhone and the Android client can
+  play the busy or failure tone instead of the call just disappearing. `tools/dbg.sh fake_outgoing ring-iphone busy`
+  and `fake_end busy` end a test-line call that way.
 
 ## 1.2.6 — 2026-11-28
 

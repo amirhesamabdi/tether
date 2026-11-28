@@ -78,6 +78,9 @@ The iPhone app and the Android client follow these rules; a client of your own s
 - **Read `status.helper.why` and `needsWifi`** (`HelperInfo.stoppedWithoutWifi`, `stopsWithoutWifi`): the phone's
   helper cannot start without Wi-Fi, and stops when the phone leaves Wi-Fi unless USB debugging is on there. Say so;
   otherwise calls just go silent (#26, #29).
+- **Play the end tone.** An ended `call.state` may carry `tone` (phones after 1.2.6): play "busy" and "congestion"
+  locally for about 3 s and show "Busy" / "Call failed" before the call screen goes; the user ending it stops the tone
+  at once. "ended" may be ignored. Without it a busy or failed number just disappears.
 - **Expect gaps.** With Bluetooth tethering on the same two phones, audio can stall for several hundred milliseconds.
   `PlayoutBuffer` keeps a stall's backlog and drains it in pauses (it cuts only beyond
   `PlayoutBuffer.maxBacklogSeconds`); if you write your own buffer, do not drop speech after every gap.

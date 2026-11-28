@@ -231,11 +231,23 @@ Contact   {id, name, phones:[{n, type, label?}], emails:[...], photo?(base64 JPE
           type: "mobile" | "home" | "work" | "main" | "other"
 CallEntry {id, num, name?, date, dur, type, sub?}
           type: 1 incoming, 2 outgoing, 3 missed, 4 voicemail, 5 rejected, 6 blocked
-Call      {cid, num, name?, state, dir, sub?, since?, cause?, hold, elsewhere?, where?}
+Call      {cid, num, name?, state, dir, sub?, since?, cause?, tone?, hold, elsewhere?, where?}
           state: "ringing" | "dialing" | "connecting" | "active" | "holding" | "ended"
           dir: "in" | "out"; hold: whether hold is supported
+          cause: free text from Android's disconnect cause (informational)
+          tone: only with state "ended": "busy" | "congestion" | "ended" (builds after 1.2.6, see below)
           elsewhere: the call's audio is on another client, named by `where` (per receiver, see §5.1)
 ```
+
+`tone` is the tone Android's own phone app would play for how the call ended (Telecom's `DisconnectCause.getTone()`):
+"busy" for ToneGenerator's TONE_SUP_BUSY, TONE_CDMA_NETWORK_BUSY and TONE_CDMA_NETWORK_BUSY_ONE_SHOT; "congestion"
+for TONE_SUP_CONGESTION, TONE_SUP_CONGESTION_ABBREV, TONE_SUP_ERROR, TONE_SUP_INTERCEPT(_ABBREV), TONE_SUP_RADIO_NOTAVAIL,
+TONE_CDMA_REORDER, TONE_CDMA_ABBR_REORDER, TONE_CDMA_INTERCEPT and TONE_CDMA_ABBR_INTERCEPT (the network refused or
+failed the call); "ended" for TONE_PROP_PROMPT and TONE_CDMA_CALLDROP_LITE (the short beep of an ordinary end). Absent:
+no tone (any other tone, an older Android phone app, the test line unless a debug hook asks for one). A client plays
+"busy" and "congestion" locally for about 3 s (an outgoing call, or any call that ended that way), showing "Busy" /
+"Call failed" on its call screen, then finishes; the user ending it stops the tone at once. Clients may ignore "ended"
+for now. Unknown values are ignored like an absent `tone`.
 
 ### 5.1 Several clients
 

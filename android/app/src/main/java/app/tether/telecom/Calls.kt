@@ -120,7 +120,7 @@ object CallRegistry {
         val dir = if (c.isOutgoing()) "out" else "in"
         return CallInfo(cid, num, name, stateName(c.stateCompat()), dir, app.sims.subFor(d.accountHandle),
             d.connectTimeMillis.takeIf { it > 0 }, d.disconnectCause?.reason?.takeIf { it.isNotBlank() },
-            d.can(Call.Details.CAPABILITY_HOLD))
+            d.can(Call.Details.CAPABILITY_HOLD), d.disconnectCause?.let { CallTone.of(it.tone) })
     }
 
     fun answer(cid: String) = calls[cid]?.answer(VideoProfile.STATE_AUDIO_ONLY) != null
