@@ -86,12 +86,14 @@ class PairingTokens(private val windowMs: Long, private val now: () -> Long = Sy
  * means the connection runs at the central's own parameters, and "balanced" exists only to undo a "high". One pacer
  * lives as long as its LE connection (see [LinkPriorities]), not a session.
  */
-class PriorityPacer(private val minGapMs: Long = 35_000) {
+class PriorityPacer(private val minGapMs: Long = 35_000, private val settleMs: Long = 1_500) {
     private var lastSent: Boolean? = null   // true: high, false: balanced, null: nothing sent on this link yet
     private var lastAt = Long.MIN_VALUE / 2
     private var wanted: Boolean? = null
     /** When the last request went out with no connection update since (-1: answered, or nothing sent). */
     private var unansweredSince = -1L
+    /** A request waits for the previous one's answer ([settleMs] at most); [answered] says it may go now. */
+    private var heldForAnswer = false
 
     /**
      * What to do now for [high] at [nowMs]: send it, nothing, or ask again in [Step.retryInMs]. [unansweredMs]: a request
@@ -102,24 +104,33 @@ class PriorityPacer(private val minGapMs: Long = 35_000) {
     @Synchronized fun want(high: Boolean, nowMs: Long): Step {
         wanted = high
         if (lastSent == high) return Step(send = false)
+        // Never two requests in flight: a Galaxy Note 20 Ultra (1.2.7, issue #26) sent "high" 0.1 s after an unanswered
+        // request and dropped the link 39 s later. Wait for the answer (usually 90-130 ms), [settleMs] at most.
+        if (unansweredSince >= 0 && nowMs - unansweredSince < settleMs) {
+            heldForAnswer = true
+            return Step(send = false, retryInMs = unansweredSince + settleMs - nowMs)
+        }
         if (high) return sent(true, nowMs)
         if (lastSent == null) return Step(send = false)   // nothing to undo on this connection
         val wait = lastAt + minGapMs - nowMs
         return if (wait <= 0) sent(false, nowMs) else Step(send = false, retryInMs = wait)
     }
 
-    /** A delayed balanced request is due: send it only if it is still what the link wants. */
-    @Synchronized fun due(nowMs: Long): Step = if (wanted == false) want(false, nowMs) else Step(send = false)
+    /** A delayed request is due: send what the link wants now, if it still differs from what was asked last. */
+    @Synchronized fun due(nowMs: Long): Step = wanted?.let { want(it, nowMs) } ?: Step(send = false)
 
-    /** The connection's parameters changed (Android's connection-updated callback): the last request was answered. */
-    @Synchronized fun answered() { unansweredSince = -1 }
+    /**
+     * The connection's parameters changed (Android's connection-updated callback): the last request was answered.
+     * Returns true when a request was held back for this answer (the caller asks [due] now instead of after [settleMs]).
+     */
+    @Synchronized fun answered(): Boolean { unansweredSince = -1; return heldForAnswer.also { heldForAnswer = false } }
 
     /** Unanswered for this long at [nowMs] (-1: answered, or nothing sent). */
     @Synchronized fun unansweredMs(nowMs: Long): Long = if (unansweredSince < 0) -1 else nowMs - unansweredSince
 
     private fun sent(high: Boolean, nowMs: Long): Step {
         val open = if (unansweredSince < 0) -1 else nowMs - unansweredSince
-        lastSent = high; lastAt = nowMs; unansweredSince = nowMs
+        lastSent = high; lastAt = nowMs; unansweredSince = nowMs; heldForAnswer = false
         return Step(send = true, unansweredMs = open)
     }
 }
@@ -137,7 +148,7 @@ class LinkPriorities(private val minGapMs: Long = 35_000) {
     @Synchronized private fun pacer(address: String) = pacers.getOrPut(address) { PriorityPacer(minGapMs) }
     @Synchronized fun want(address: String, high: Boolean, nowMs: Long) = pacer(address).want(high, nowMs)
     @Synchronized fun due(address: String, nowMs: Long) = pacer(address).due(nowMs)
-    @Synchronized fun answered(address: String) { pacers[address]?.answered() }
+    @Synchronized fun answered(address: String): Boolean = pacers[address]?.answered() ?: false
     @Synchronized fun unansweredMs(address: String, nowMs: Long): Long = pacers[address]?.unansweredMs(nowMs) ?: -1
     /** The LE connection to [address] is gone: the next one starts with nothing asked. */
     @Synchronized fun connectionDown(address: String) { pacers.remove(address) }

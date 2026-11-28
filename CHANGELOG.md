@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Call audio and the link
+
+- Link: the Android phone never has two Bluetooth speed requests in flight. A request now waits for the previous
+  one's answer (usually ~0.1 s, 1.5 s at most). A Galaxy Note 20 Ultra on 1.2.7 asked for the fast link 0.1 s after an
+  unanswered request and lost the link 39 s later (#26).
+
 ### iPhone and Android client
 
 - Android client, Messages: links, phone numbers and codes in your own (teal) bubbles are drawn in the bubble's text

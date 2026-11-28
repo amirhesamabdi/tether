@@ -201,6 +201,25 @@ class LinkPolicyTest {
         assertEquals(-1, p.unansweredMs(51_000))
     }
 
+    @Test fun neverTwoRequestsInFlight() {
+        // Galaxy Note 20 Ultra + iPhone, 1.2.7 (issue #26): "high requested while the request of 0.1 s ago is
+        // unanswered" at 17:05:53.137, link down 39 s later. Before 1.2.9 high went out at once.
+        val p = PriorityPacer(minGapMs = 35_000, settleMs = 1_500)
+        assertTrue(p.want(high = true, nowMs = 0).send)
+        p.answered()
+        assertTrue(p.want(high = false, nowMs = 40_000).send)
+        val ring = p.want(high = true, nowMs = 40_100)
+        assertFalse("not while the balanced of 0.1 s ago is unanswered", ring.send)
+        assertEquals(1_400, ring.retryInMs)
+        assertTrue("its answer releases it", p.answered())
+        assertTrue(p.due(nowMs = 40_230).send)
+        assertFalse("nothing was held back for this answer", p.answered())
+        // Unanswered for good: the held request goes after 1.5 s.
+        assertTrue(p.want(high = false, nowMs = 80_000).send)
+        assertFalse(p.want(high = true, nowMs = 80_500).send)
+        assertTrue(p.due(nowMs = 81_500).send)
+    }
+
     @Test fun balancedIsNeverTheFirstRequestOnAConnection() {
         val p = PriorityPacer()
         assertFalse(p.want(high = false, nowMs = 0).send)

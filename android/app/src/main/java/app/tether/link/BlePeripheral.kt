@@ -368,7 +368,10 @@ class BlePeripheral(private val ctx: Context, private val onTransport: (Transpor
         if (address in keeperUp && address in held) request(address)
     }
 
-    /** Asks for the link's wanted priority, paced (PriorityPacer): never the same twice, "balanced" not within 35 s of the last. */
+    /**
+     * Asks for the link's wanted priority, paced (PriorityPacer): never the same twice, never while the last request is
+     * unanswered (1.5 s at most), "balanced" not within 35 s of the last.
+     */
     private fun request(address: String, due: Boolean = false) {
         val g = keepers[address]?.takeIf { address in keeperUp && address in held } ?: return
         val high = (wantedPriority[address] ?: BluetoothGatt.CONNECTION_PRIORITY_BALANCED) == BluetoothGatt.CONNECTION_PRIORITY_HIGH
@@ -380,7 +383,7 @@ class BlePeripheral(private val ctx: Context, private val onTransport: (Transpor
             if (step.unansweredMs >= 0) LinkLog.add("link priority ${if (high) "high" else "balanced"} requested while the request of " +
                 "%.1f s ago is unanswered".format(step.unansweredMs / 1000.0))
         } else if (step.retryInMs >= 0) {
-            Log.i(TAG, "link priority balanced in ${step.retryInMs / 1000} s (not right after the last request)")
+            Log.i(TAG, "link priority ${if (high) "high" else "balanced"} in ${step.retryInMs} ms (after the last request's answer or its pause)")
             pulseTimer.schedule({ request(address, due = true) }, step.retryInMs, java.util.concurrent.TimeUnit.MILLISECONDS)
         }
     }
@@ -449,7 +452,7 @@ class BlePeripheral(private val ctx: Context, private val onTransport: (Transpor
         @Suppress("unused")
         fun onConnectionUpdated(device: BluetoothDevice, interval: Int, latency: Int, timeout: Int, status: Int) {
             linkParams[device.address] = "interval %.2f ms, latency %d, timeout %d ms".format(interval * 1.25, latency, timeout * 10)
-            priorities.answered(device.address)
+            if (priorities.answered(device.address)) pulseTimer.execute { request(device.address, due = true) }   // a request waited for this answer
             Log.i(TAG, "link ${device.address}: ${linkParams[device.address]}")
         }
 
