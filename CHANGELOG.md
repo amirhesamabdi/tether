@@ -7,6 +7,9 @@
 - Android client, Messages: links, phone numbers and codes in your own (teal) bubbles are drawn in the bubble's text
   colour, as on the iPhone. In the accent colour they were invisible there, and a text that was only a number looked
   like an empty bubble (#34).
+- Android client, calls: answering a call asks Android again for the microphone service. When a call rang with the
+  client in the background, Android 14 and later refused it and the client's microphone recorded only silence for that
+  call (the link log said `foreground service for a call refused` and `microphone: only silence`) (#34).
 
 ## 1.2.8 — 2026-11-28
 

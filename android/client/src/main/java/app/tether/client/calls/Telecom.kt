@@ -470,6 +470,10 @@ class TetherConnection(private val app: ClientApp, val local: String, val inPhon
     override fun onAnswer(videoState: Int) { if (!moving) answer() }
 
     private fun answer() {
+        // Ask again for the call's microphone service: when the call rang with this app in the background, Android
+        // refused it ("FGS with type microphone … eligible state") and the microphone recorded only silence (issue #34).
+        // The user's answer is the moment Android may allow it; the link log says when it is refused again.
+        app.service(callMode = true)
         // A call that already runs on the Android phone (reported as started) needs no answer there.
         if (app.calls.calls.firstOrNull { it.local == local }?.state.let { it == "active" || it == "holding" }) {
             setActive(); app.notifier.cancelIncoming(local); app.telecom.refreshAudio(); return
