@@ -486,8 +486,11 @@ object CallAudio {
      *   VOICE_UPLINK cannot show the injected voice the tx key is still trusted ([blindSafe]). On Samsung's Qualcomm
      *   models (A71, A73, Fold) the keys are NEVER written (1.2.4): on a Galaxy A73 (Android 16, issue #13) the Text
      *   Call keys left the voice PCM device held ("voice_start_usecase: cannot open device pcmC0D15c: Device or
-     *   resource busy" at every later call start), so calls on the phone itself had no audio until a reboot. There the
-     *   earpiece is silenced with the voice-call stream only ([voiceStream]) and the microphone stays on.
+     *   resource busy" at every later call start), so calls on the phone itself had no audio until a reboot. Nor is the
+     *   voice-call stream muted there (1.2.8): One UI 8 ignores that mute (the A73's earpiece kept playing at the
+     *   user's level, issue #13), and a muted stream reads index 0, so the Android phone app's check that holds the call
+     *   volume at its lowest step during a bridged call never saw the volume go back up when the call got its audio
+     *   mode. The earpiece is quieted by that volume hold alone; the microphone stays on unless the user chose Muted.
      * - Qualcomm: voice-call stream muted (HAL voice volume 0 sets the "Voice Rx Device Mute" mixer control). Its HAL
      *   has no microphone key; Android's mic mute (Telecom) mutes the whole Tx path unless the injection is the in-call
      *   music use case (hardware/qcom/audio voice.c, voice_set_mic_mute), which the interception track is not.
@@ -502,7 +505,7 @@ object CallAudio {
      * trinket, 2026-11-25) VOICE_UPLINK still heard the iPhone with the mute on while the far end heard nothing.
      */
     enum class Silence(val vendorMicKeys: Boolean, val voiceStream: Boolean, val blindSafe: Boolean, val telecomMuteKillsUplink: Boolean) {
-        SAMSUNG(true, false, true, false), SAMSUNG_QUALCOMM(false, true, false, true), QUALCOMM(false, true, false, true),
+        SAMSUNG(true, false, true, false), SAMSUNG_QUALCOMM(false, false, false, true), QUALCOMM(false, true, false, true),
         MEDIATEK(true, false, false, true), OTHER(false, true, false, false)
     }
 
@@ -574,7 +577,12 @@ object CallAudio {
                     if (!muted) VendorKeys.cleared()
                     Local("mediatek dl=$v ul=$m", true)
                 }
-                Silence.SAMSUNG_QUALCOMM, Silence.QUALCOMM, Silence.OTHER -> {
+                Silence.SAMSUNG_QUALCOMM -> {
+                    // Never muted here (see Silence); undo a mute left by an older version or a crashed helper.
+                    if (streamMuted || am.isStreamMute(AudioManager.STREAM_VOICE_CALL)) muteVoiceStream(false)
+                    Local(if (muted) "voice stream not muted (One UI ignores it): call volume held at its lowest step" else "voice stream restored", true)
+                }
+                Silence.QUALCOMM, Silence.OTHER -> {
                     // Unmute also when another helper process muted it (a crash mid-call): nobody else mutes this stream.
                     if (muted || streamMuted || am.isStreamMute(AudioManager.STREAM_VOICE_CALL)) muteVoiceStream(muted)
                     Local("voice stream ${if (muted) "muted" else "restored"}", true)

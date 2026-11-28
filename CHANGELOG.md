@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Call audio and the link
+
+- Android phone, Samsung phones with a Qualcomm chip (Galaxy A73, A52s): the earpiece is no longer "muted" through the
+  voice-call stream during a bridged call. One UI 8 ignores that mute, and a muted stream reads volume 0, so the hold
+  that keeps the phone's call volume at its lowest step never noticed that the volume went back up to the user's level
+  when the call got its audio: the A73 still played the call loudly (15 of 15) and the far end heard an echo, also with
+  **Muted** (#13). Now the volume hold alone quiets the earpiece, and the link log says when it had to lower it again.
+
 ## 1.2.7 — 2026-11-28
 
 ### Call audio and the link

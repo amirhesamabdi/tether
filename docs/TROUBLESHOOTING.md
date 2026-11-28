@@ -154,7 +154,8 @@ The Android phone's own earpiece still plays the call and its microphone, still 
 phones with a Qualcomm chip (Galaxy A73, A52s, One UI 8) ignore the voice-call mute, and Tether no longer uses
 Samsung's call keys there (they once left the phone's calls silent until a restart, 1.2.4). Tether keeps the phone's
 call volume at its lowest step for the whole bridged call (the `call audio path:` line shows `voice-call volume 1 of
-1–8`). If the echo stays, choose **Muted** in the Android app (Call audio › This phone's microphone): with the
+1–8`; before 1.2.8 the voice-call mute these phones ignore also hid the volume from that hold, so the earpiece
+stayed at your own level). If the echo stays, choose **Muted** in the Android app (Call audio › This phone's microphone): with the
 in-call music route (`telephony_tx`, which these phones use) Android's microphone mute keeps your voice in the call,
 and Tether checks that during the call. Keeping the Android phone in a bag or face down also helps.
 
