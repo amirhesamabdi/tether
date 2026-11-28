@@ -162,8 +162,49 @@ class LinkPolicyTest {
         assertTrue(p.want(high = true, nowMs = 37_500).send)
         assertFalse(p.want(high = false, nowMs = 50_000).send)
         assertTrue("a new call came first: the delayed balanced is dropped", p.want(high = true, nowMs = 51_000).let { !it.send } && !p.due(nowMs = 72_500).send)
-        // A new LE link asks at once.
-        p.reset()
-        assertTrue(p.want(high = false, nowMs = 73_000).send)
+    }
+
+    @Test fun aNewSessionOnTheSameConnectionDoesNotAskAgain() {
+        // Galaxy A54 + iPhone 17, 2026-11-28: the iPhone restarted its session on an open LE connection (services
+        // changed); the new session got a fresh pacer, repeated "balanced" 0.6 s after the same request had been
+        // answered, that repeat was never answered, the call's "high" 10 s later never applied, and the link dropped
+        // 40.0 s after the repeat (LL response timeout), in the middle of the call.
+        val links = LinkPriorities(minGapMs = 35_000)
+        val iphone = "AA:BB:CC:DD:EE:01"
+        // Earlier: a call's high, then its balanced 35 s on (13:10:55.814), answered at .981.
+        assertTrue(links.want(iphone, high = true, nowMs = 0).send)
+        assertTrue(links.want(iphone, high = false, nowMs = 55_814).send)
+        links.answered(iphone)
+        // 13:10:55.793 the session closed, 13:10:56.367 the next one is up on the same connection (no ACL down between).
+        assertFalse("the same connection was asked for balanced 0.6 s ago", links.want(iphone, high = false, nowMs = 56_390).send)
+        val dial = links.want(iphone, high = true, nowMs = 66_344)
+        assertTrue("the call's high goes out at once", dial.send)
+        assertEquals("nothing was left unanswered before it", -1L, dial.unansweredMs)
+        // The connection went down (13:11:36) and a new one came up (13:11:41): nothing asked on it yet.
+        links.connectionDown(iphone)
+        assertFalse("a fresh connection runs at the central's own parameters: no balanced to undo anything",
+            links.want(iphone, high = false, nowMs = 102_666).send)
+        assertTrue("the call still going asks high at once on the new connection", links.want(iphone, high = true, nowMs = 102_673).send)
+    }
+
+    @Test fun anUnansweredRequestIsReportedAndDoesNotHoldBackHigh() {
+        val p = PriorityPacer(minGapMs = 35_000)
+        assertTrue(p.want(high = true, nowMs = 0).send)
+        p.answered()
+        assertTrue(p.want(high = false, nowMs = 40_000).send)
+        assertEquals(5_000, p.unansweredMs(45_000))
+        // A ring while that balanced is still unanswered: high is not delayed, and the link log says what was open.
+        val ring = p.want(high = true, nowMs = 50_000)
+        assertTrue(ring.send)
+        assertEquals(10_000, ring.unansweredMs)
+        p.answered()
+        assertEquals(-1, p.unansweredMs(51_000))
+    }
+
+    @Test fun balancedIsNeverTheFirstRequestOnAConnection() {
+        val p = PriorityPacer()
+        assertFalse(p.want(high = false, nowMs = 0).send)
+        assertFalse(p.due(nowMs = 40_000).send)
+        assertTrue(p.want(high = true, nowMs = 41_000).send)
     }
 }

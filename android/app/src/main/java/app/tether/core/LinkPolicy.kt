@@ -70,27 +70,40 @@ class PairingTokens(private val windowMs: Long, private val now: () -> Long = Sy
 }
 
 /**
- * When the Android phone asks the central for a faster or slower LE connection (BlePeripheral.tune), per link. Issue
- * #13 (Galaxy A73 with an iPhone, 2026-11-25): a "balanced" request sent 9–15 s after the call's "high" ones got no
- * answer, and 40 s later (the link layer's procedure timeout) Android dropped the link with status 34 (LL response
+ * When the Android phone asks the central for a faster or slower LE connection (BlePeripheral.tune), per LE connection.
+ * Issue #13 (Galaxy A73 with an iPhone, 2026-11-25): a "balanced" request sent 9–15 s after the call's "high" ones got
+ * no answer, and 40 s later (the link layer's procedure timeout) Android dropped the link with status 34 (LL response
  * timeout), every time: six drops in one evening, one in the middle of the next call ("audio stops"). The balanced
  * request that came 40 s after the previous one was answered in 130 ms; the "high" ones at a call's start always were.
- * So: a request is never sent twice in a row ([want] the same priority does nothing), "high" goes out at once (a ring
- * must not wait), and "balanced" only once [minGapMs] passed since the last request on that link ([want] returns the
- * time to ask again; the caller re-asks then and nothing is sent if "high" was wanted meanwhile).
+ * Galaxy A54 with an iPhone 17 (2026-11-28 13:10): a "balanced" request repeated 0.6 s after the same request had been
+ * answered (a new session on the same connection) was never answered either; the call's "high" 10 s later never
+ * applied (the controller runs one parameter procedure at a time) and the link dropped 40.0 s after the repeat.
+ *
+ * So, per connection: a request is never sent twice ([want] the same priority does nothing), "high" goes out at once
+ * (a ring must not wait; a high sent 7 ms after a balanced one on a fresh connection was answered in 90 ms), "balanced"
+ * only once [minGapMs] passed since the last request ([want] returns the time to ask again; the caller re-asks then and
+ * nothing is sent if "high" was wanted meanwhile), and never as the first request on a connection: nothing asked yet
+ * means the connection runs at the central's own parameters, and "balanced" exists only to undo a "high". One pacer
+ * lives as long as its LE connection (see [LinkPriorities]), not a session.
  */
 class PriorityPacer(private val minGapMs: Long = 35_000) {
     private var lastSent: Boolean? = null   // true: high, false: balanced, null: nothing sent on this link yet
     private var lastAt = Long.MIN_VALUE / 2
     private var wanted: Boolean? = null
+    /** When the last request went out with no connection update since (-1: answered, or nothing sent). */
+    private var unansweredSince = -1L
 
-    /** What to do now for [high] at [nowMs]: send it, nothing, or ask again in [Step.retryInMs]. */
-    data class Step(val send: Boolean, val retryInMs: Long = -1)
+    /**
+     * What to do now for [high] at [nowMs]: send it, nothing, or ask again in [Step.retryInMs]. [unansweredMs]: a request
+     * goes out while the previous one has had no answer for that long (-1: it had one), for the link log.
+     */
+    data class Step(val send: Boolean, val retryInMs: Long = -1, val unansweredMs: Long = -1)
 
     @Synchronized fun want(high: Boolean, nowMs: Long): Step {
         wanted = high
         if (lastSent == high) return Step(send = false)
-        if (high || lastSent == null) return sent(high, nowMs)
+        if (high) return sent(true, nowMs)
+        if (lastSent == null) return Step(send = false)   // nothing to undo on this connection
         val wait = lastAt + minGapMs - nowMs
         return if (wait <= 0) sent(false, nowMs) else Step(send = false, retryInMs = wait)
     }
@@ -98,8 +111,35 @@ class PriorityPacer(private val minGapMs: Long = 35_000) {
     /** A delayed balanced request is due: send it only if it is still what the link wants. */
     @Synchronized fun due(nowMs: Long): Step = if (wanted == false) want(false, nowMs) else Step(send = false)
 
-    /** A new LE link: nothing was asked on it yet (its first request goes out at once). */
-    @Synchronized fun reset() { lastSent = null; lastAt = Long.MIN_VALUE / 2 }
+    /** The connection's parameters changed (Android's connection-updated callback): the last request was answered. */
+    @Synchronized fun answered() { unansweredSince = -1 }
 
-    private fun sent(high: Boolean, nowMs: Long): Step { lastSent = high; lastAt = nowMs; return Step(send = true) }
+    /** Unanswered for this long at [nowMs] (-1: answered, or nothing sent). */
+    @Synchronized fun unansweredMs(nowMs: Long): Long = if (unansweredSince < 0) -1 else nowMs - unansweredSince
+
+    private fun sent(high: Boolean, nowMs: Long): Step {
+        val open = if (unansweredSince < 0) -1 else nowMs - unansweredSince
+        lastSent = high; lastAt = nowMs; unansweredSince = nowMs
+        return Step(send = true, unansweredMs = open)
+    }
+}
+
+/**
+ * One [PriorityPacer] per LE connection (ACL) to a central, by address. A session ending says nothing about the
+ * connection: the iPhone restarts its session on a connection that stays up (services changed, a new L2CAP channel),
+ * and until 1.2.6 the pacer went with the session, so the next session repeated "balanced" on the same connection and
+ * the link dropped 40 s later (Galaxy A54, 2026-11-28). Only the connection going down ([connectionDown]: the LE ACL
+ * broadcast) or Bluetooth stopping ([forget]) starts a fresh pacer.
+ */
+class LinkPriorities(private val minGapMs: Long = 35_000) {
+    private val pacers = HashMap<String, PriorityPacer>()
+
+    @Synchronized private fun pacer(address: String) = pacers.getOrPut(address) { PriorityPacer(minGapMs) }
+    @Synchronized fun want(address: String, high: Boolean, nowMs: Long) = pacer(address).want(high, nowMs)
+    @Synchronized fun due(address: String, nowMs: Long) = pacer(address).due(nowMs)
+    @Synchronized fun answered(address: String) { pacers[address]?.answered() }
+    @Synchronized fun unansweredMs(address: String, nowMs: Long): Long = pacers[address]?.unansweredMs(nowMs) ?: -1
+    /** The LE connection to [address] is gone: the next one starts with nothing asked. */
+    @Synchronized fun connectionDown(address: String) { pacers.remove(address) }
+    @Synchronized fun forget() { pacers.clear() }
 }

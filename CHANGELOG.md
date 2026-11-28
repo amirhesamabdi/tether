@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Call audio and the link
+
+- Link: the Android phone remembers what it asked of a Bluetooth LE connection for as long as that connection is up,
+  not only for one session. When the iPhone restarted its session on the same connection, the phone repeated its
+  "balanced" request 0.6 s after the first had been answered; the repeat was never answered, the call's fast-link
+  request behind it never applied, and the link dropped 40 s later in the middle of the call (Galaxy A54). A fresh
+  connection is no longer asked for "balanced" at all, and the link log says when a request goes out while an earlier
+  one is still unanswered.
+
 ## 1.2.6 — 2026-11-28
 
 ### Call audio and the link (#13, #14, #25, #26, #29)
