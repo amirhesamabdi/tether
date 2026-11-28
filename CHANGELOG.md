@@ -10,6 +10,10 @@
   request behind it never applied, and the link dropped 40 s later in the middle of the call (Galaxy A54). A fresh
   connection is no longer asked for "balanced" at all, and the link log says when a request goes out while an earlier
   one is still unanswered.
+- Android phone: a client back on a new link during a call keeps the codecs of its earlier link, and its sync
+  announces the call's audio again if needed. The phone moved the call to the reconnected iPhone before its sync and
+  announced G.711 at 8 kHz while its helper kept capturing at the call's 16 kHz: the iPhone played the rest of the call
+  at half speed and the far end got the iPhone's voice at the wrong rate (Galaxy A54, 2026-11-28).
 - Android phone: an iPhone or Android client that reconnects during a call it answered or dialed is named as the
   call's owner from the first call state it gets. It used to be told for a moment that its own call was "on" the
   phone, so the iPhone stopped and restarted the call's audio right after every reconnect.

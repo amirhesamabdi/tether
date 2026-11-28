@@ -79,6 +79,9 @@ class Hub(private val app: TetherApp) : ConnectionListener {
     private val smsRequestIds = java.util.concurrent.atomic.AtomicInteger(System.nanoTime().toInt() ushr 1)
     private val listeners = CopyOnWriteArrayList<() -> Unit>()
     val audio = AudioSession()
+    /** What each client decodes, kept across its links (ClientCodecs: a reconnect before the sync must not drop Opus). */
+    private val clientCodecs = ClientCodecs()
+    private fun peerHex(c: Connection): String? = c.peerKey?.joinToString("") { "%02x".format(it) }
 
     /** Whether the phone shows its own call screen for the call now (the "show it while bridged" setting, AudioOwner). */
     fun showsCallScreen(): Boolean =
@@ -220,6 +223,7 @@ class Hub(private val app: TetherApp) : ConnectionListener {
         // A reconnecting client keeps its place: its last action, and the call audio if it had it. The new link
         // is listed first, so closing the old one never sees "no client" (audio stop, advertising restart).
         app.keys.central(c.peerKey)?.let { c.name = it.name; c.kind = it.kind }
+        clientCodecs.known(peerHex(c))?.let { c.codecs = it }
         val olds = conns.filter { it !== c && it.peerKey.contentEquals(c.peerKey) }
         conns.add(c)
         olds.forEach { old ->
@@ -300,7 +304,11 @@ class Hub(private val app: TetherApp) : ConnectionListener {
             T.PING -> c.send(Message(T.PONG, JSONObject().put("ts", m.b.optLong("ts")), re = m.id))
             T.PONG -> Unit
             T.SYNC -> {
-                m.b.optJSONArray("codecs")?.let { a -> c.codecs = (0 until a.length()).map { a.getString(it) } }
+                m.b.optJSONArray("codecs")?.let { a ->
+                    c.codecs = (0 until a.length()).map { a.getString(it) }
+                    clientCodecs.remember(peerHex(c), c.codecs)
+                    audioCtl.execute { audio.codecsKnown(c) }
+                }
                 m.b.optJSONObject("client")?.let { cl ->
                     c.kind = cl.optString("kind", c.kind); c.name = cl.optString("name", c.name).take(60)
                     c.peerKey?.let { app.keys.updateCentral(it, c.name, c.kind) }
@@ -1142,7 +1150,11 @@ class Hub(private val app: TetherApp) : ConnectionListener {
             audioCtl.execute { reconcile() }
         }
 
+        /** The rate the helper was started with (the call's codec rate at its start). */
+        @Volatile private var helperRate = 0
+
         private fun startHelper(rate: Int, inject: String) {
+            helperRate = rate
             val mem = memory()
             telecomWanted = false
             lastUplinkSeen = null
@@ -1323,6 +1335,20 @@ class Hub(private val app: TetherApp) : ConnectionListener {
         }
 
         /** Moves running call audio to another client; the helper (and the Android phone's muting) keep running. */
+        /** [c]'s sync named its codecs: if it has the call's audio with a codec its link guessed, announce the right one. */
+        fun codecsKnown(c: Connection) {
+            lock.lock()
+            try {
+                if (target !== c) return
+                val wanted = codecFor(c)
+                if (ClientCodecs.reannounce(codec?.name, wanted.name, wanted.rate, helperRate)) {
+                    Log.i(TAG, "call audio: ${c.name} decodes ${wanted.name}: announcing it again")
+                    LinkLog.add("call audio: ${c.name} now gets ${wanted.name} (its link had started with ${codec?.name})")
+                    wanted.release(); retarget(c)
+                } else wanted.release()
+            } finally { lock.unlock() }
+        }
+
         private fun retarget(c: Connection) {
             val old = target
             val k = codecFor(c)
@@ -1333,7 +1359,7 @@ class Hub(private val app: TetherApp) : ConnectionListener {
             lastUpSeq = -1
             uplinkMuted = false
             oldCodec?.release()
-            old?.sendUrgent(Message(T.AUDIO_STOP))
+            old?.takeIf { it !== c }?.sendUrgent(Message(T.AUDIO_STOP))   // the same link (a new codec): only the new start
             // The same phone back on a new link keeps its fast interval: no slow-down request in between (issue #13).
             old?.takeIf { it.transport.address != c.transport.address }?.let { LinkService.running?.peripheral?.tune(it.transport.address, high = false) }
             c.sendUrgent(startMessage(k))
