@@ -41,6 +41,11 @@
 
 ### iPhone and Android client
 
+- Android client: the Link screen with its Network entry is back (it was left out of the redesign), the network
+  switches are read again after a reconnect, and another switch's reply no longer clears the one you are waiting for
+  (#31, thanks @Shabdin-A).
+- Android phone, Setup: when Tether cannot become the default phone app, Setup says why (Android refused it, the role
+  is not available on this phone, or Android reported success but another app still holds it) (#32, thanks @Shabdin-A).
 - Call audio after a reconnect: a call whose link dropped and came back now sounds right at once. The Android phone
   app 1.2.6 sent its 16 kHz audio as G.711 "at 8 kHz" when it moved a running call to a client that had just
   reconnected; the iPhone played it at half speed and threw away the other half (a Galaxy A54 call of 2026-11-28:
