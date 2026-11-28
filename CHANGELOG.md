@@ -17,6 +17,14 @@
   "busy", "congestion" for a call the network refused or failed, "ended"), so the iPhone and the Android client can
   play the busy or failure tone instead of the call just disappearing. `tools/dbg.sh fake_outgoing ring-iphone busy`
   and `fake_end busy` end a test-line call that way.
+- Android phone, call audio without Wi-Fi (#26): on Samsung phones pulling out the USB cable restarts adb even with
+  USB debugging on, and the audio helper stops with it; off Wi-Fi it could not start again, and three calls on a
+  Galaxy A54 had no audio at all without a word. Now the Call audio card warns while the cable is in and the phone is
+  off Wi-Fi (status `helper.stopsOnUnplug`), the link log says when the cable goes and the helper stops, and a call
+  that starts without the helper shows a notification on the phone, "No call audio: turn on Wi-Fi on this phone for
+  a moment" (status `helper.noCallAudio`, for the iPhone's and the Android client's call screens). As soon as Wi-Fi
+  is back the helper starts at once, without waiting for the back-off of the failed attempts, also without the
+  secure-settings permission. Tether never turns Wi-Fi or USB debugging on by itself.
 
 ## 1.2.6 — 2026-11-28
 

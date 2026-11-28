@@ -81,7 +81,10 @@ Yes, once the helper is running, if **USB debugging** is on too (Developer optio
 Wireless debugging off without Wi-Fi, and with USB debugging off it then stops the helper: call audio and the switches
 stop until Wi-Fi is back. The Call audio card offers **Turn on USB debugging** and the iPhone's Link tab says when this
 applies. Starting the helper (after a restart) still needs Wi-Fi, or TCP debugging on a phone without Wi-Fi
-([SETUP.md](SETUP.md#call-audio-without-wi-fi-keep-usb-debugging-on)).
+([SETUP.md](SETUP.md#call-audio-without-wi-fi-keep-usb-debugging-on)). On Samsung phones, pulling out a connected USB
+cable also stops the helper (Samsung restarts adb): turn on Wi-Fi for a few seconds afterwards, and the helper runs
+again without Wi-Fi. A call that starts without the helper shows "No call audio: turn on Wi-Fi on this phone for a
+moment" on the Android phone and on the iPhone.
 
 ### Mobile data is on, but the iPhone shows it off
 

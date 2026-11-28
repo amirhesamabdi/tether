@@ -212,6 +212,8 @@ class MainActivity : Activity() {
                 render()
             })
         }
+        // Samsung restarts adbd when the USB cable is pulled out, and the helper with it (Galaxy A54, 2026-11-28).
+        if (h.optBoolean("stopsOnUnplug")) audio.addView(label(getString(R.string.helper_stops_on_unplug), R.color.warn, 13f))
         // The phone's own microphone during bridged calls (issue #2): by default a redirect audio mode takes it out of the
         // call where the phone allows it (MicPath); muting it is opt-in, since on some phones that also mutes the iPhone.
         if (app.hub.helper.audioLevel() != "unavailable") {

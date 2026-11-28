@@ -154,6 +154,17 @@ class Adb private constructor(private val ctx: Context) : AbsAdbConnectionManage
         /** USB debugging is on: then adbd, and the helper it started, keep running when Wi-Fi goes (HelperLife). */
         fun usbDebugging(ctx: Context) = Settings.Global.getInt(ctx.contentResolver, Settings.Global.ADB_ENABLED, 0) == 1
 
+        /** Android's sticky USB state broadcast (UsbManager.ACTION_USB_STATE, hidden in the SDK). */
+        const val USB_STATE = "android.hardware.usb.action.USB_STATE"
+
+        /** A USB cable to a computer (or charger with data) is in: Samsung restarts adbd when it is pulled (HelperLife). */
+        fun usbConnected(ctx: Context): Boolean = runCatching {
+            ctx.registerReceiver(null, android.content.IntentFilter(USB_STATE))?.getBooleanExtra("connected", false)
+        }.getOrNull() ?: false
+
+        /** Samsung's adbd restarts when the USB cable is unplugged (HelperLife). */
+        val samsung: Boolean get() = android.os.Build.MANUFACTURER.equals("samsung", ignoreCase = true)
+
         /**
          * Turns USB debugging on so the helper outlives Wi-Fi (issues #26, #29). Only on the user's tap: it is a
          * developer setting some banking apps refuse to run with. Needs WRITE_SECURE_SETTINGS.

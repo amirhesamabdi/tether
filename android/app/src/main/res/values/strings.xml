@@ -67,6 +67,9 @@
     <string name="helper_why_wifi">The audio helper cannot start: this phone is not on Wi-Fi, so Android has turned Wireless debugging off. Connect to Wi-Fi to start it. For a phone without Wi-Fi, set up TCP debugging (Setup).</string>
     <string name="helper_needs_wifi">Call audio stops when this phone leaves Wi-Fi: Android then turns Wireless debugging off and stops the audio helper with it. With USB debugging on, the helper keeps running without Wi-Fi (no cable needed; some banking apps refuse to run while it is on).</string>
     <string name="action_usb_debugging">Turn on USB debugging</string>
+    <string name="helper_stops_on_unplug">Unplugging the USB cable stops call audio: Samsung restarts USB debugging when the cable is pulled out, and the audio helper stops with it. Without Wi-Fi it cannot start again: after unplugging, turn on Wi-Fi for a few seconds.</string>
+    <string name="notif_no_call_audio_title">No call audio: turn on Wi-Fi on this phone for a moment</string>
+    <string name="notif_no_call_audio_text">The audio helper is not running (the USB cable was unplugged or Wi-Fi went off) and cannot start without Wi-Fi. A few seconds of Wi-Fi are enough; with USB debugging on it then keeps running without Wi-Fi.</string>
     <string name="selftest_result">Self-test: %1$s</string>
 
     <string name="adb_notif_title">Wireless debugging pairing</string>

@@ -5,6 +5,8 @@ import android.os.SystemClock
 import android.util.Log
 import app.tether.TetherApp
 import app.tether.adb.Adb
+import app.tether.adb.HelperLife
+import app.tether.ui.NoCallAudio
 import app.tether.audio.AudioRestart
 import app.tether.audio.CallAudioReport
 import app.tether.audio.DiagStore
@@ -1030,6 +1032,32 @@ class Hub(private val app: TetherApp) : ConnectionListener {
             val live = if (running) helper.lastUplink?.optString("state")?.takeIf { it.isNotEmpty() } else null
             (live ?: if (mic == MicPath.Setting.MUTE) memory()?.wire else redirectMemory().values.firstOrNull { it == MicPath.Verdict.OK }?.wire)?.let { put("uplink", it) }
             if (running) helper.lastMic?.optString("path")?.takeIf { it.isNotEmpty() }?.let { put("micPath", it) }
+            noCallAudio(optString("why").takeIf { it.isNotEmpty() })?.let { put("noCallAudio", it) }
+        }
+
+        /** Status `helper.noCallAudio` (HelperLife.noCallAudio); [why]: `helper.why`. */
+        private fun noCallAudio(why: String?): String? =
+            HelperLife.noCallAudio(CallRegistry.active().isNotEmpty(), helper.connected, why, helper.audioLevel(),
+                app.prefs.getBoolean("adb_paired", false))
+
+        /** What clients and the phone's notification were last told (see [checkNoCallAudio]). */
+        @Volatile private var noCallAudioSaid: String? = null
+
+        /**
+         * A call is going and its audio cannot be bridged because the helper cannot start without Wi-Fi (a USB unplug
+         * restarted Samsung's adbd, or Wi-Fi went without USB debugging): post the phone's own notification and push a
+         * status so the clients' call screens say so at once; take both back when it is over. Never turns Wi-Fi or USB
+         * debugging on.
+         */
+        fun checkNoCallAudio() {
+            if (noCallAudioSaid == null && CallRegistry.active().isEmpty()) return
+            val now = noCallAudio(helper.cannotStart())?.takeIf { targets().isNotEmpty() }
+            if (now == noCallAudioSaid) return
+            noCallAudioSaid = now
+            if (now != null) LinkLog.add("call audio: none for this call: the audio helper is not running and cannot start without Wi-Fi " +
+                "(after a USB unplug Samsung restarts adb and the helper with it); turn on Wi-Fi on this phone for a moment")
+            NoCallAudio.show(app, now != null)
+            bg { pushStatus() }
         }
 
         /** The self-test's first row: how this call's audio ran before the test paused it. */
@@ -1226,6 +1254,8 @@ class Hub(private val app: TetherApp) : ConnectionListener {
             if (changed) broadcastCalls()
             // Keep the helper alive between calls too, so answering never waits for a launch.
             if (!helper.connected && app.prefs.getBoolean("adb_paired", false)) helper.kick()
+            // A call without call audio because the helper cannot start (no Wi-Fi): the phone and the clients say so.
+            runCatching { checkNoCallAudio() }.onFailure { Log.w(TAG, "no-call-audio check: ${it.message}") }
         }
 
         fun pause() { paused = true; audioCtl.submit { reconcile() }.get() }

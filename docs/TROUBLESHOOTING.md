@@ -201,6 +201,15 @@ card: the helper then keeps running without Wi-Fi. It still needs Wi-Fi (or TCP 
 after a restart. Some banking apps refuse to run while USB debugging is on. Details: SETUP.md, "Call audio without
 Wi-Fi".
 
+**Samsung: unplugging the USB cable stops the helper too**, even with USB debugging on: Samsung restarts adb when the
+cable is pulled out, and the helper goes with it (Galaxy A54, Android 17). Plugging the cable back in does not bring it
+back; only Wi-Fi does. Without Wi-Fi the next calls have no audio at all. In builds after 1.2.6 the Call audio card warns while
+the cable is in and the phone is off Wi-Fi, the link log says "USB cable unplugged" and "audio helper stopped", and a
+call that starts without the helper shows a notification on the Android phone, **No call audio: turn on Wi-Fi on this
+phone for a moment** (the iPhone and the Android client say the same on their call screen). Turn on Wi-Fi for a few
+seconds: the helper starts at once and then keeps running without Wi-Fi until the next unplug. Tether never turns
+Wi-Fi or USB debugging on by itself.
+
 ## Mobile data shows off although it is on
 
 Fixed after 1.2.5 (#14): the switch read Android's global setting, which dual-SIM phones on some ROMs (seen on a Poco

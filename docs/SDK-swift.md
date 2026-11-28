@@ -77,7 +77,10 @@ The iPhone app and the Android client follow these rules; a client of your own s
   a silent call.
 - **Read `status.helper.why` and `needsWifi`** (`HelperInfo.stoppedWithoutWifi`, `stopsWithoutWifi`): the phone's
   helper cannot start without Wi-Fi, and stops when the phone leaves Wi-Fi unless USB debugging is on there. Say so;
-  otherwise calls just go silent (#26, #29).
+  otherwise calls just go silent (#26, #29). Phones after 1.2.6 also send `stopsOnUnplug` (a Samsung phone restarts
+  adb, and so the helper, when its USB cable is pulled out, and off Wi-Fi it cannot come back) and, during a call that
+  has no call audio for that reason, `noCallAudio` "wifi": show "No call audio: turn on Wi-Fi on the Android phone
+  for a moment" on the call screen.
 - **Play the end tone.** An ended `call.state` may carry `tone` (phones after 1.2.6): play "busy" and "congestion"
   locally for about 3 s and show "Busy" / "Call failed" before the call screen goes; the user ending it stops the tone
   at once. "ended" may be ignored. Without it a busy or failed number just disappears.

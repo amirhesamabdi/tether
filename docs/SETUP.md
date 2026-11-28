@@ -43,6 +43,11 @@ instead.
 Starting the helper always needs Wi-Fi (or TCP debugging, below): after a phone restart, or if the helper stopped,
 the Call audio card, the iPhone and the client say "not on Wi-Fi" until it can start again.
 
+On Samsung phones, pulling out a connected USB cable restarts adb even with USB debugging on, and the helper stops
+with it; off Wi-Fi it cannot start again until Wi-Fi is on for a few seconds. The Call audio card warns about this while
+the cable is in, and a call without the helper shows "No call audio: turn on Wi-Fi on this phone for a moment"
+(TROUBLESHOOTING.md, "Call audio stops when the Android phone leaves Wi-Fi").
+
 ### TCP debugging (Android 8 to 10, or no Wi-Fi)
 
 Android 8 to 10 have no Wireless debugging, and Wireless debugging also needs a Wi-Fi network the phone trusts. For those

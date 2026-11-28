@@ -10,6 +10,12 @@ package app.tether.adb
  * neither USB debugging nor Wireless debugging is on, and turns Wireless debugging off as soon as Wi-Fi goes. So:
  * with USB debugging on, adbd and the helper outlive Wi-Fi; without it, the helper stops with Wi-Fi and cannot be
  * started again until Wi-Fi is back (or TCP debugging is set up).
+ *
+ * Samsung also restarts adbd when the USB cable is unplugged, with USB debugging on (Galaxy A54, Android 17,
+ * 2026-11-28: a new adbd at the unplug, the helper gone with it; plugging the cable back in did not restart adbd). A
+ * helper that runs while the cable is in therefore stops at the next unplug, and without Wi-Fi nothing can start it
+ * again: three calls that day had no audio at all. Wi-Fi for a few seconds is enough to start it; it then keeps
+ * running without Wi-Fi (USB debugging on) until the next unplug.
  */
 object HelperLife {
     /**
@@ -27,4 +33,21 @@ object HelperLife {
      */
     fun needsWifi(running: Boolean, sdk: Int, usbDebugging: Boolean): Boolean =
         running && ConnectOrder.tlsSupported(sdk) && !usbDebugging
+
+    /**
+     * Status `helper.stopsOnUnplug`: the running helper lives in an adbd that unplugging the USB cable restarts (a
+     * [samsung] phone, the cable in), and the phone is off Wi-Fi, so the helper could not start again afterwards.
+     * TCP debugging ([legacy]) does not help: adbd restarts all the same, but then it is reachable again.
+     */
+    fun stopsOnUnplug(running: Boolean, sdk: Int, usbDebugging: Boolean, usbConnected: Boolean, wifi: Boolean, samsung: Boolean, legacy: Boolean): Boolean =
+        running && ConnectOrder.tlsSupported(sdk) && usbDebugging && usbConnected && !wifi && samsung && !legacy
+
+    /**
+     * Status `helper.noCallAudio`: "wifi" while a call is ringing, dialing or going on ([callGoing]) whose audio would be
+     * bridged ([audio] "full" or "fallback", call audio set up: [adbPaired]) but cannot be, because the helper is not
+     * running and cannot start without Wi-Fi ([why] "wifi"). Clients show it on their call screen and the Android phone
+     * posts a notification: turn on Wi-Fi for a moment. Null otherwise.
+     */
+    fun noCallAudio(callGoing: Boolean, running: Boolean, why: String?, audio: String, adbPaired: Boolean): String? =
+        if (callGoing && !running && why == "wifi" && adbPaired && (audio == "full" || audio == "fallback")) "wifi" else null
 }
